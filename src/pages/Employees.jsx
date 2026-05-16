@@ -15,7 +15,7 @@ export default function Employees() {
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState(null);
-  const [form, setForm] = useState({ name: '', role: '', telephone: '', email: '', avatar: '', color: '#7c3aed' });
+  const [form, setForm] = useState({ name: '', role: '', telephone: '', email: '', password: '', avatar: '', color: '#7c3aed' });
 
   const filtered = employees.filter(e =>
     e.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -31,7 +31,7 @@ export default function Employees() {
       setEmployees(prev => [...prev, { id: Date.now(), ...form, joined: new Date().toISOString().slice(0, 10), avatar: form.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) }]);
     }
     setShowAdd(false);
-    setForm({ name: '', role: '', telephone: '', email: '', avatar: '', color: '#7c3aed' });
+    setForm({ name: '', role: '', telephone: '', email: '', password: '', avatar: '', color: '#7c3aed' });
   };
 
   const handleEdit = (emp) => {
@@ -49,13 +49,13 @@ export default function Employees() {
           <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 22 }}>Employees</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>Manage staff, roles and shifts</p>
         </div>
-        <button className="btn btn-primary" onClick={() => { setShowAdd(true); setEditId(null); setForm({ name: '', role: '', telephone: '', email: '', avatar: '', color: '#7c3aed' }); }}>
+        <button className="btn btn-primary" onClick={() => { setShowAdd(true); setEditId(null); setForm({ name: '', role: '', telephone: '', email: '', password: '', avatar: '', color: '#7c3aed' }); }}>
           <Plus size={15} /> Add Employee
         </button>
       </div>
 
       {/* Stats */}
-      <div className="stats-grid mb-20" style={{ gridTemplateColumns: 'repeat(1, 1fr)' }}>
+      <div className="stats-grid mb-20" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
         {[
           { label: 'Total Staff', value: employees.length, color: '#7c3aed', bg: 'rgba(124,58,237,0.12)' }
         ].map((s, i) => (
@@ -127,7 +127,7 @@ export default function Employees() {
               <button onClick={() => setShowAdd(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={18} /></button>
             </div>
             <div className="section-gap">
-              {[['Name', 'name', 'text', 'Full name'], ['Role', 'role', 'text', 'e.g. Cashier'], ['Telephone number', 'telephone', 'tel', '+1 234 567 8900'], ['Email', 'email', 'email', 'example@mail.com']].map(([label, key, type, ph]) => (
+              {[['Name', 'name', 'text', 'Full name'], ['Role', 'role', 'text', 'e.g. Cashier'], ['Telephone number', 'telephone', 'tel', '+1 234 567 8900'], ['Email', 'email', 'email', 'example@mail.com'], ['Password', 'password', 'password', 'Enter password']].map(([label, key, type, ph]) => (
                 <div key={key} className="form-group">
                   <label className="form-label">{label}</label>
                   <input className="form-input" type={type} placeholder={ph} value={form[key] || ''} onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))} />
