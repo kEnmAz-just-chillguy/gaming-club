@@ -1,14 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Settings, Monitor, BarChart3,
   Users, Wallet, Coffee, History, Palette,
   ChevronRight, Gamepad2
 } from 'lucide-react';
+import { rooms as initialRooms } from '../data/mockData';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard, badge: null },
-  { path: '/rooms', label: 'Rooms', icon: Monitor, badge: '12' },
+  { path: '/rooms', label: 'Rooms', icon: Monitor, badge: null },
   { path: '/statistics', label: 'Statistics', icon: BarChart3, badge: null },
   { path: '/employees', label: 'Employees', icon: Users, badge: null },
   { path: '/spending', label: 'Spending', icon: Wallet, badge: null },
@@ -21,6 +22,23 @@ const navItems = [
 export default function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [roomsCount, setRoomsCount] = useState(initialRooms.length);
+
+  useEffect(() => {
+    const updateCount = () => {
+      const saved = localStorage.getItem('gaming_club_rooms');
+      if (saved) {
+        try {
+          setRoomsCount(JSON.parse(saved).length);
+        } catch (e) {}
+      } else {
+        setRoomsCount(initialRooms.length);
+      }
+    };
+    updateCount();
+    window.addEventListener('rooms_updated', updateCount);
+    return () => window.removeEventListener('rooms_updated', updateCount);
+  }, []);
 
   return (
     <aside className="sidebar">
@@ -45,7 +63,11 @@ export default function Sidebar() {
                 >
                   <span className="sidebar-icon"><Icon size={17} /></span>
                   <span>{item.label}</span>
-                  {item.badge && <span className="sidebar-badge">{item.badge}</span>}
+                  {item.badge === 'rooms' ? (
+                    <span className="sidebar-badge">{roomsCount}</span>
+                  ) : item.badge ? (
+                    <span className="sidebar-badge">{item.badge}</span>
+                  ) : null}
                 </button>
               </li>
             );

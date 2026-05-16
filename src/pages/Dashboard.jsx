@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
 import { TrendingUp, TrendingDown, Users, Monitor, DollarSign, Coffee, Activity, Clock } from 'lucide-react';
-import { revenueData, weeklyData, topGames, rooms, employees } from '../data/mockData';
+import { revenueData, weeklyData, topGames, rooms as initialRooms, employees } from '../data/mockData';
 
 const StatCard = ({ icon: Icon, label, value, change, up, color, bg }) => (
   <div className="stat-card fade-in">
@@ -41,6 +41,18 @@ const CustomTooltip = ({ active, payload, label }) => {
 export default function Dashboard() {
   const [chartTab, setChartTab] = useState('monthly');
   const data = chartTab === 'monthly' ? revenueData : weeklyData;
+
+  const [rooms, setRooms] = useState(() => {
+    const saved = localStorage.getItem('gaming_club_rooms');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse rooms from localStorage', e);
+      }
+    }
+    return initialRooms;
+  });
 
   const occupied = rooms.filter(r => r.status === 'occupied').length;
   const available = rooms.filter(r => r.status === 'available').length;
@@ -186,17 +198,34 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {rooms.filter(r => r.status === 'occupied').slice(0, 4).map(r => (
-              <div key={r.id} className="flex-between">
-                <div className="flex-gap">
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--red)' }} />
-                  <span style={{ fontSize: 13, fontWeight: 600 }}>Room {r.number}</span>
+              <div key={r.id} style={{ background: 'rgba(255,255,255,0.02)', padding: 16, borderRadius: 12, border: '1px solid var(--border)' }}>
+                <div className="flex-between mb-10">
+                  <div className="flex-gap">
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--red)' }} />
+                    <span style={{ fontSize: 14, fontWeight: 600, fontFamily: 'Orbitron, sans-serif' }}>Room {r.number}</span>
+                  </div>
+                  <div className="flex-gap" style={{ gap: 6 }}>
+                    <Monitor size={12} color="var(--text-muted)" />
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{r.equipment || (r.pcs ? `${r.pcs} PCs` : '')}</span>
+                  </div>
                 </div>
-                <div className="flex-gap" style={{ gap: 12 }}>
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{r.game}</span>
-                  <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{r.player}</span>
-                  <span style={{ fontSize: 12, color: 'var(--accent-light)', fontWeight: 600 }}>since {r.since}</span>
+                
+                <div style={{ padding: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Current Session</div>
+                    <div style={{ fontSize: 12, color: 'var(--accent-light)' }}>⏱️ since {r.since}</div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>👤 {r.player}</div>
+                      <div style={{ fontSize: 12, color: 'var(--accent-light)', marginTop: 2 }}>🎮 {r.game}</div>
+                    </div>
+                    {r.pricePerHour && (
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--green)' }}>${r.pricePerHour}/h</div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
