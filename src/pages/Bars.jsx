@@ -14,7 +14,7 @@ export default function Bars() {
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState(null);
-  const [form, setForm] = useState({ name: '', price: '', quantity: '' });
+  const [form, setForm] = useState({ name: '', price: '', quantity: '', unit: 'dona' });
 
   const filtered = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -24,14 +24,14 @@ export default function Bars() {
       setItems(prev => prev.map(i => i.id === editId ? { ...i, ...form, price: +form.price, quantity: +form.quantity } : i));
       setEditId(null);
     } else {
-      setItems(prev => [...prev, { id: Date.now(), name: form.name, price: +form.price, quantity: +form.quantity }]);
+      setItems(prev => [...prev, { id: Date.now(), name: form.name, price: +form.price, quantity: +form.quantity, unit: form.unit }]);
     }
     setShowAdd(false);
-    setForm({ name: '', price: '', quantity: '' });
+    setForm({ name: '', price: '', quantity: '', unit: 'dona' });
   };
 
   const handleEdit = (item) => {
-    setForm({ name: item.name, price: String(item.price), quantity: String(item.quantity) });
+    setForm({ name: item.name, price: String(item.price), quantity: String(item.quantity), unit: item.unit || 'dona' });
     setEditId(item.id);
     setShowAdd(true);
   };
@@ -43,7 +43,7 @@ export default function Bars() {
           <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 22 }}>Bars</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>Manage products and inventory</p>
         </div>
-        <button className="btn btn-primary" onClick={() => { setShowAdd(true); setEditId(null); setForm({ name: '', price: '', quantity: '' }); }}>
+        <button className="btn btn-primary" onClick={() => { setShowAdd(true); setEditId(null); setForm({ name: '', price: '', quantity: '', unit: 'dona' }); }}>
           <Plus size={15} /> Add Product
         </button>
       </div>
@@ -69,7 +69,7 @@ export default function Bars() {
             </div>
             <div className="flex-between mt-16">
               <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--accent-light)' }}>{item.price.toLocaleString()} so'm</span>
-              <span className="badge badge-purple">Qty: {item.quantity}</span>
+              <span className="badge badge-purple">{item.quantity} {item.unit || 'dona'}</span>
             </div>
           </div>
         ))}
@@ -93,8 +93,24 @@ export default function Bars() {
                 <input className="form-input" type="number" step="100" min="0" placeholder="5000" value={form.price} onChange={e => setForm(p => ({ ...p, price: e.target.value }))} />
               </div>
               <div className="form-group">
-                <label className="form-label">Quantity</label>
-                <input className="form-input" type="number" min="0" placeholder="10" value={form.quantity} onChange={e => setForm(p => ({ ...p, quantity: e.target.value }))} />
+                <label className="form-label">O'lchov birligi</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {['dona', 'kg'].map(u => (
+                    <button
+                      key={u}
+                      type="button"
+                      onClick={() => setForm(p => ({ ...p, unit: u }))}
+                      className={`btn btn-sm ${form.unit === u ? 'btn-primary' : 'btn-secondary'}`}
+                      style={{ flex: 1 }}
+                    >
+                      {u === 'dona' ? '📦 Dona' : '⚖️ Kilogram'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Miqdor ({form.unit})</label>
+                <input className="form-input" type="number" min="0" step={form.unit === 'kg' ? '0.1' : '1'} placeholder={form.unit === 'kg' ? '1.5' : '10'} value={form.quantity} onChange={e => setForm(p => ({ ...p, quantity: e.target.value }))} />
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
