@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { rooms as initialRooms } from '../data/mockData';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 import { Monitor, Users, Gamepad2, Clock, Plus, X, Check } from 'lucide-react';
+import { formatSomRaw } from '../utils/currency';
 
 const statusConfig = {
   occupied: { label: 'Occupied', color: 'var(--red)', bg: 'rgba(239,68,68,0.12)', dot: '#ef4444' },
@@ -9,11 +11,11 @@ const statusConfig = {
 };
 
 export default function Rooms() {
-  const [rooms, setRooms] = useState(initialRooms);
+  const [rooms, setRooms] = useLocalStorage('gc_rooms_v2', initialRooms);
   const [filter, setFilter] = useState('all');
   const [selected, setSelected] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
-  const [newRoom, setNewRoom] = useState({ number: '', type: 'Standard', pcs: 4 });
+  const [newRoom, setNewRoom] = useState({ number: '', type: 'Standard', console: 'PS3' });
 
   const filtered = filter === 'all' ? rooms : rooms.filter(r => r.status === filter);
 
@@ -26,7 +28,7 @@ export default function Rooms() {
     if (!newRoom.number) return;
     setRooms(prev => [...prev, { id: Date.now(), ...newRoom, status: 'available', game: null, player: null, since: null, revenue: 0 }]);
     setShowAdd(false);
-    setNewRoom({ number: '', type: 'Standard', pcs: 4 });
+    setNewRoom({ number: '', type: 'Standard', console: 'PS3' });
   };
 
   const counts = {
@@ -92,15 +94,13 @@ export default function Rooms() {
               <div className="room-type">{room.type}</div>
               {room.status === 'occupied' && (
                 <div style={{ marginTop: 12, padding: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: 8 }}>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Current Session</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>👤 {room.player}</div>
-                  <div style={{ fontSize: 12, color: 'var(--accent-light)', marginTop: 2 }}>🎮 {room.game}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Current Session Active</div>
                 </div>
               )}
               <div className="room-meta">
                 <div className="flex-gap" style={{ gap: 6 }}>
-                  <Monitor size={12} color="var(--text-muted)" />
-                  <span className="room-pcs">{room.pcs} PCs</span>
+                  <Gamepad2 size={12} color="var(--text-muted)" />
+                  <span className="room-pcs">{room.console}</span>
                 </div>
                 {room.since && (
                   <div className="flex-gap" style={{ gap: 6 }}>
@@ -108,8 +108,8 @@ export default function Rooms() {
                     <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{room.since}</span>
                   </div>
                 )}
-                {room.revenue > 0 && (
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--green)' }}>${room.revenue}</span>
+                {room.status === 'occupied' && room.revenue > 0 && (
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--green)' }}>{formatSomRaw(room.revenue)}</span>
                 )}
               </div>
             </div>
@@ -126,7 +126,7 @@ export default function Rooms() {
               <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={18} /></button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-              {[['Type', selected.type], ['PCs', selected.pcs], ['Status', selected.status], ['Game', selected.game || '—'], ['Player', selected.player || '—'], ['Since', selected.since || '—'], ['Revenue', selected.revenue ? `$${selected.revenue}` : '—']].map(([k, v]) => (
+              {[['Type', selected.type], ['Console', selected.console], ['Status', selected.status], ['Since', selected.since || '—'], ['Revenue', selected.revenue ? formatSomRaw(selected.revenue) : '—']].map(([k, v]) => (
                 <div key={k} className="flex-between">
                   <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{k}</span>
                   <span style={{ fontSize: 13, fontWeight: 600 }}>{v}</span>
@@ -162,8 +162,10 @@ export default function Rooms() {
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label">Number of PCs</label>
-                <input className="form-input" type="number" min={1} max={20} value={newRoom.pcs} onChange={e => setNewRoom(p => ({ ...p, pcs: +e.target.value }))} />
+                <label className="form-label">Console</label>
+                <select className="form-input" value={newRoom.console} onChange={e => setNewRoom(p => ({ ...p, console: e.target.value }))}>
+                  <option>PS3</option><option>PS4</option><option>PS5</option>
+                </select>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
