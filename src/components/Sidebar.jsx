@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 
 const navItems = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard, badge: null },
+  { path: '/', label: 'All Rooms', icon: Gamepad2, badge: '12' },
   { path: '/rooms', label: 'Rooms', icon: Monitor, badge: '12' },
   { path: '/statistics', label: 'Statistics', icon: BarChart3, badge: null },
   { path: '/employees', label: 'Employees', icon: Users, badge: null },

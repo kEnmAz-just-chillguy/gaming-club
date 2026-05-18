@@ -1,10 +1,13 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
 import { TrendingUp, TrendingDown, Users, Monitor, DollarSign, Coffee, Activity, Clock } from 'lucide-react';
-import { revenueData, weeklyData, topGames, rooms, employees } from '../data/mockData';
+import { revenueData, weeklyData, topGames, rooms as initialRooms, employees as initialEmployees } from '../data/mockData';
+import { useLocalStorage } from '../hooks/useLocalStorage';
+import { formatSomRaw } from '../utils/currency';
 
 const StatCard = ({ icon: Icon, label, value, change, up, color, bg }) => (
   <div className="stat-card fade-in">
@@ -29,7 +32,7 @@ const CustomTooltip = ({ active, payload, label }) => {
         <p style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 6 }}>{label}</p>
         {payload.map((p, i) => (
           <p key={i} style={{ color: p.color, fontSize: 13, fontWeight: 600 }}>
-            {p.name}: ${p.value?.toLocaleString() ?? p.value}
+            {p.name}: {formatSomRaw(p.value ?? 0)}
           </p>
         ))}
       </div>
@@ -39,8 +42,11 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [chartTab, setChartTab] = useState('monthly');
   const data = chartTab === 'monthly' ? revenueData : weeklyData;
+  const [rooms] = useLocalStorage('gc_rooms_v2', initialRooms);
+  const [employees] = useLocalStorage('gc_employees', initialEmployees);
 
   const occupied = rooms.filter(r => r.status === 'occupied').length;
   const available = rooms.filter(r => r.status === 'available').length;
@@ -52,7 +58,7 @@ export default function Dashboard() {
     { icon: '☕', text: 'Bar purchase — Energy Drink x2', time: '8 min ago', color: 'var(--cyan)' },
     { icon: '🔧', text: 'Room B-03 set to maintenance', time: '25 min ago', color: 'var(--orange)' },
     { icon: '👤', text: 'New session — Room D-02 (Nina S.)', time: '34 min ago', color: 'var(--green)' },
-    { icon: '💰', text: 'Payment received — $60.00', time: '1h ago', color: 'var(--pink)' },
+    { icon: '💰', text: `Payment received — ${formatSomRaw(60 * 12000)}`, time: '1h ago', color: 'var(--pink)' },
   ];
 
   return (
@@ -62,7 +68,7 @@ export default function Dashboard() {
         <h3>Welcome back, Admin! 👋</h3>
         <p>Your gaming club is running smoothly. {occupied} of {rooms.length} rooms are currently occupied.</p>
         <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
-          <button className="btn btn-primary btn-sm">View Rooms</button>
+          <button className="btn btn-primary btn-sm" onClick={() => navigate('/all-rooms')}>View Rooms</button>
           <button className="btn btn-secondary btn-sm" style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', borderColor: 'rgba(255,255,255,0.2)' }}>Export Report</button>
         </div>
       </div>
@@ -71,9 +77,9 @@ export default function Dashboard() {
       <div className="stats-grid mb-20">
         <StatCard icon={Monitor} label="Occupied Rooms" value={occupied} change="+3" up={true} color="#7c3aed" bg="rgba(124,58,237,0.15)" />
         <StatCard icon={Activity} label="Available Rooms" value={available} change="-3" up={false} color="#06b6d4" bg="rgba(6,182,212,0.15)" />
-        <StatCard icon={DollarSign} label="Today Revenue" value={`$${todayRevenue}`} change="+12%" up={true} color="#10b981" bg="rgba(16,185,129,0.15)" />
+        <StatCard icon={DollarSign} label="Today Revenue" value={formatSomRaw(todayRevenue)} change="+12%" up={true} color="#10b981" bg="rgba(16,185,129,0.15)" />
         <StatCard icon={Users} label="Active Staff" value={activeStaff} change="+1" up={true} color="#f59e0b" bg="rgba(245,158,11,0.15)" />
-        <StatCard icon={Coffee} label="Bar Sales Today" value="$124" change="+18%" up={true} color="#ec4899" bg="rgba(236,72,153,0.15)" />
+        <StatCard icon={Coffee} label="Bar Sales Today" value={formatSomRaw(1488000)} change="+18%" up={true} color="#ec4899" bg="rgba(236,72,153,0.15)" />
         <StatCard icon={Clock} label="Avg Session" value="2.4h" change="+0.3h" up={true} color="#8b5cf6" bg="rgba(139,92,246,0.15)" />
       </div>
 

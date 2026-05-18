@@ -1,10 +1,11 @@
-import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Search, Bell, Sun, Moon, Settings, RefreshCw } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 
 const titles = {
   '/': { title: 'Dashboard', sub: 'Welcome back, Admin! Here\'s what\'s happening today.' },
   '/rooms': { title: 'Rooms', sub: 'Monitor and manage all gaming rooms.' },
+  '/all-rooms': { title: 'All Rooms', sub: 'Live overview of every gaming room in the club.' },
   '/statistics': { title: 'Statistics', sub: 'Detailed performance analytics and insights.' },
   '/employees': { title: 'Employees', sub: 'Manage your staff and shifts.' },
   '/spending': { title: 'Spending', sub: 'Track expenses and budget allocation.' },
@@ -16,8 +17,9 @@ const titles = {
 
 export default function Topbar() {
   const location = useLocation();
-  const [dark, setDark] = useState(true);
-  const info = titles[location.pathname] || titles['/'];
+  const { isDark, toggleTheme } = useTheme();
+  const info = titles[location.pathname]
+    || (location.pathname.startsWith('/room/') ? { title: 'Room Detail', sub: 'Full room info, session history and bar orders.' } : titles['/']);
 
   return (
     <header className="topbar">
@@ -35,8 +37,8 @@ export default function Topbar() {
         <button className="topbar-btn" title="Refresh" onClick={() => window.location.reload()}>
           <RefreshCw size={15} />
         </button>
-        <button className="topbar-btn" title="Toggle theme" onClick={() => setDark(!dark)}>
-          {dark ? <Sun size={15} /> : <Moon size={15} />}
+        <button className="topbar-btn" title="Toggle theme" onClick={toggleTheme}>
+          {isDark ? <Sun size={15} /> : <Moon size={15} />}
         </button>
         <button className="topbar-btn" title="Notifications">
           <Bell size={15} />
