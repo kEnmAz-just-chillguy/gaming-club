@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Search, Bell, Sun, Moon, LogOut, RefreshCw } from 'lucide-react';
-import { useTheme } from '../context/ThemeContext';
+import { Search, Bell, Sun, Moon, LogOut, RefreshCw, Settings } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const titles = {
@@ -19,6 +18,9 @@ const titles = {
 export default function Topbar() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  
   const [dark, setDark] = useState(() => {
     const saved = localStorage.getItem('theme');
     if (saved) return saved === 'dark';
@@ -35,6 +37,11 @@ export default function Topbar() {
       document.documentElement.classList.add('light-mode');
       localStorage.setItem('theme', 'light');
     }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
   };
 
   const info = titles[location.pathname] || titles['/'];
@@ -57,11 +64,14 @@ export default function Topbar() {
             <RefreshCw size={15} />
           </button>
           <button className="topbar-btn" title="Toggle theme" onClick={toggleTheme}>
-            {isDark ? <Sun size={15} /> : <Moon size={15} />}
+            {dark ? <Sun size={15} /> : <Moon size={15} />}
           </button>
           <button className="topbar-btn" title="Notifications">
             <Bell size={15} />
             <span className="notif-dot" />
+          </button>
+          <button className="topbar-btn" title="Settings" onClick={() => navigate('/settings')}>
+            <Settings size={15} />
           </button>
           <button className="topbar-btn" title="Logout" onClick={() => setShowLogoutConfirm(true)} style={{ color: 'var(--red)' }}>
             <LogOut size={15} />
@@ -72,22 +82,18 @@ export default function Topbar() {
         </div>
       </header>
 
-      <div className="topbar-actions">
-        <button className="topbar-btn" title="Refresh" onClick={() => window.location.reload()}>
-          <RefreshCw size={15} />
-        </button>
-        <button className="topbar-btn" title="Toggle theme" onClick={toggleTheme}>
-          {dark ? <Sun size={15} /> : <Moon size={15} />}
-        </button>
-        <button className="topbar-btn" title="Notifications">
-          <Bell size={15} />
-          <span className="notif-dot" />
-        </button>
-        <button className="topbar-btn" title="Settings">
-          <Settings size={15} />
-        </button>
-        <div className="user-avatar" style={{ width: 38, height: 38, fontSize: 14, cursor: 'pointer' }}>A</div>
-      </div>
-    </header>
+      {showLogoutConfirm && (
+        <div className="modal-overlay" onClick={() => setShowLogoutConfirm(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h3>Confirm Logout</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: 20 }}>Are you sure you want to log out of the admin panel?</p>
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setShowLogoutConfirm(false)}>Cancel</button>
+              <button className="btn btn-danger" onClick={handleLogout}>Logout</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
