@@ -16,7 +16,24 @@ const titles = {
 
 export default function Topbar() {
   const location = useLocation();
-  const [dark, setDark] = useState(true);
+  const [dark, setDark] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved) return saved === 'dark';
+    return !document.documentElement.classList.contains('light-mode');
+  });
+
+  const toggleTheme = () => {
+    const isDark = !dark;
+    setDark(isDark);
+    if (isDark) {
+      document.documentElement.classList.remove('light-mode');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.add('light-mode');
+      localStorage.setItem('theme', 'light');
+    }
+  };
+
   const info = titles[location.pathname] || titles['/'];
 
   return (
@@ -35,7 +52,7 @@ export default function Topbar() {
         <button className="topbar-btn" title="Refresh" onClick={() => window.location.reload()}>
           <RefreshCw size={15} />
         </button>
-        <button className="topbar-btn" title="Toggle theme" onClick={() => setDark(!dark)}>
+        <button className="topbar-btn" title="Toggle theme" onClick={toggleTheme}>
           {dark ? <Sun size={15} /> : <Moon size={15} />}
         </button>
         <button className="topbar-btn" title="Notifications">
