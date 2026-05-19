@@ -15,8 +15,6 @@ import Appearance from './pages/Appearance';
 import Settings from './pages/Settings';
 import RoomDetail from './pages/RoomDetail';
 import Login from './pages/Login';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { ThemeProvider } from './context/ThemeContext';
 
 function ProtectedLayout() {
   const { user } = useAuth();
