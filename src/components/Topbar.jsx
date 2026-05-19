@@ -39,38 +39,19 @@ export default function Topbar() {
 
   const info = titles[location.pathname] || titles['/'];
 
+  const navigate = useNavigate();
+
   return (
-    <>
-      <header className="topbar">
-        <div className="topbar-title">
-          <h2>{info.title}</h2>
-          <p>{info.sub}</p>
-        </div>
+    <header className="topbar">
+      <div className="topbar-title">
+        <h2>{info.title}</h2>
+        <p>{info.sub}</p>
+      </div>
 
-        <div className="search-bar">
-          <Search size={14} color="var(--text-muted)" />
-          <input placeholder="Search anything..." />
-        </div>
-
-        <div className="topbar-actions">
-          <button className="topbar-btn" title="Refresh" onClick={() => window.location.reload()}>
-            <RefreshCw size={15} />
-          </button>
-          <button className="topbar-btn" title="Toggle theme" onClick={toggleTheme}>
-            {isDark ? <Sun size={15} /> : <Moon size={15} />}
-          </button>
-          <button className="topbar-btn" title="Notifications">
-            <Bell size={15} />
-            <span className="notif-dot" />
-          </button>
-          <button className="topbar-btn" title="Logout" onClick={() => setShowLogoutConfirm(true)} style={{ color: 'var(--red)' }}>
-            <LogOut size={15} />
-          </button>
-          <div className="user-avatar" style={{ width: 38, height: 38, fontSize: 14, cursor: 'pointer' }} onClick={() => navigate('/settings')}>
-            {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
-          </div>
-        </div>
-      </header>
+      <div className="search-bar">
+        <Search size={14} color="var(--text-muted)" />
+        <input placeholder="Search anything..." />
+      </div>
 
       <div className="topbar-actions">
         <button className="topbar-btn" title="Refresh" onClick={() => window.location.reload()}>
@@ -83,10 +64,12 @@ export default function Topbar() {
           <Bell size={15} />
           <span className="notif-dot" />
         </button>
-        <button className="topbar-btn" title="Settings">
-          <Settings size={15} />
+        <button className="topbar-btn" title="Logout" onClick={() => setShowLogoutConfirm(true)} style={{ color: 'var(--red)' }}>
+          <LogOut size={15} />
         </button>
-        <div className="user-avatar" style={{ width: 38, height: 38, fontSize: 14, cursor: 'pointer' }}>A</div>
+        <div className="user-avatar" style={{ width: 38, height: 38, fontSize: 14, cursor: 'pointer' }} onClick={() => navigate('/settings')}>
+          A
+        </div>
       </div>
     </header>
   );
