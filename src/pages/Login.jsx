@@ -7,13 +7,16 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    const res = login(email, password);
+    setIsLoading(true);
+    const res = await login(email, password);
+    setIsLoading(false);
     if (res.success) {
       navigate('/');
     } else {
@@ -75,13 +78,13 @@ export default function Login() {
             </div>
           </div>
           
-          <button type="submit" style={{ width: '100%', height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 600, marginTop: 12, cursor: 'pointer', boxShadow: '0 4px 14px rgba(139, 92, 246, 0.4)', transition: 'transform 0.1s, opacity 0.2s' }}
-            onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
-            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-            onMouseDown={e => e.currentTarget.style.transform = 'scale(0.98)'}
-            onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+          <button type="submit" disabled={isLoading} style={{ width: '100%', height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isLoading ? '#6d48c8' : '#8b5cf6', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 600, marginTop: 12, cursor: isLoading ? 'not-allowed' : 'pointer', boxShadow: '0 4px 14px rgba(139, 92, 246, 0.4)', transition: 'transform 0.1s, opacity 0.2s', opacity: isLoading ? 0.7 : 1 }}
+            onMouseEnter={e => !isLoading && (e.currentTarget.style.opacity = '0.9')}
+            onMouseLeave={e => !isLoading && (e.currentTarget.style.opacity = '1')}
+            onMouseDown={e => !isLoading && (e.currentTarget.style.transform = 'scale(0.98)')}
+            onMouseUp={e => !isLoading && (e.currentTarget.style.transform = 'scale(1)')}
           >
-            Sign In <ArrowRight size={18} style={{ marginLeft: 8 }} />
+            {isLoading ? 'Signing In...' : <>Sign In <ArrowRight size={18} style={{ marginLeft: 8 }} /></>}
           </button>
         </form>
       </div>
