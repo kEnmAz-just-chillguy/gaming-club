@@ -4,6 +4,8 @@ import { Monitor, Users, Gamepad2, Clock, Plus, X, Check, Trash2, Edit } from 'l
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { formatSomRaw } from '../utils/currency';
 
+import { supabase } from '../config/supabase';
+
 const statusConfig = {
   occupied: { label: 'Occupied', color: 'var(--red)', bg: 'rgba(239,68,68,0.12)', dot: '#ef4444' },
   available: { label: 'Available', color: 'var(--green)', bg: 'rgba(16,185,129,0.12)', dot: '#10b981' },
@@ -18,6 +20,24 @@ export default function Rooms() {
   const [newRoom, setNewRoom] = useState({ number: '', type: 'Standard', equipment: '', pricePerHour: '' });
   const [roomToDelete, setRoomToDelete] = useState(null);
   const [editRoom, setEditRoom] = useState(null);
+
+  const getRooms = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("rooms")
+        .select("*");
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setRooms(data);
+      }
+    } catch (err) {
+      console.error("Error fetching rooms from Supabase:", err);
+    }
+  };
+
+  useEffect(() => {
+    getRooms();
+  }, []);
 
   useEffect(() => {
     window.dispatchEvent(new Event('rooms_updated'));
@@ -82,15 +102,15 @@ export default function Rooms() {
               </div>
               <div className="room-type">{room.type}</div>
               <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-                <button 
-                  className="btn btn-secondary btn-sm" 
+                <button
+                  className="btn btn-secondary btn-sm"
                   style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   onClick={(e) => { e.stopPropagation(); setEditRoom(room); }}
                 >
                   <Edit size={14} style={{ marginRight: 6 }} /> Edit
                 </button>
-                <button 
-                  className="btn btn-sm" 
+                <button
+                  className="btn btn-sm"
                   style={{ flex: 1, background: 'rgba(239,68,68,0.1)', color: 'var(--red)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   onClick={(e) => { e.stopPropagation(); setRoomToDelete(room.id); }}
                 >
@@ -144,8 +164,8 @@ export default function Rooms() {
                 <button className="btn btn-danger btn-sm" onClick={() => handleStatusChange(selected.id, 'maintenance')}>Maintenance</button>
                 <button className="btn btn-secondary btn-sm" onClick={() => setSelected(null)}>Close</button>
               </div>
-              <button 
-                className="btn btn-sm" 
+              <button
+                className="btn btn-sm"
                 style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--red)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center' }}
                 onClick={() => handleDelete(selected.id)}>
                 <Trash2 size={14} style={{ marginRight: 4 }} /> Delete

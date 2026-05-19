@@ -7,7 +7,8 @@ import {
   ArrowLeft, Monitor, Clock, Gamepad2, Users, DollarSign,
   Wrench, Coffee, CheckCircle, XCircle, AlertTriangle, ShoppingCart, X
 } from 'lucide-react';
-
+import { supabase } from '../config/supabase';
+ 
 const statusCfg = {
   occupied:    { label: 'Occupied',    color: '#ef4444', bg: 'rgba(239,68,68,0.12)',  dot: '#ef4444' },
   available:   { label: 'Available',   color: '#10b981', bg: 'rgba(16,185,129,0.12)', dot: '#10b981' },
@@ -28,6 +29,24 @@ export default function RoomDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [globalRooms, setGlobalRooms] = useLocalStorage('gc_rooms_v2', mockRooms);
+
+  const getRooms = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("rooms")
+        .select("*");
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setGlobalRooms(data);
+      }
+    } catch (err) {
+      console.error("Error fetching rooms in RoomDetail:", err);
+    }
+  };
+
+  useEffect(() => {
+    getRooms();
+  }, []);
   const [globalBarOrders, setGlobalBarOrders] = useLocalStorage('gc_roomBarOrders', mockBarOrders);
   const [barItems] = useLocalStorage('gc_barItems', mockBarItems);
   const room = globalRooms.find(r => r.id === Number(id));

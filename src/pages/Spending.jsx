@@ -3,16 +3,18 @@ import { spendings as initialSpendings, employees } from '../data/mockData';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Plus, X, Trash2, Wallet, AlertTriangle, TrendingUp, User } from 'lucide-react';
 
+import { supabase } from '../config/supabase';
+
 const categories = ['Jihozlar', 'Kommunal', 'Bar', 'Mebel', 'Dasturiy ta\'minot', 'Xodimlar (Kassa)', 'Texnik xizmat', 'Boshqa'];
-const catColors = { 
-  Jihozlar: '#7c3aed', 
-  Kommunal: '#f59e0b', 
-  Bar: '#06b6d4', 
-  Mebel: '#10b981', 
-  'Dasturiy ta\'minot': '#8b5cf6', 
-  'Xodimlar (Kassa)': '#ef4444', 
-  'Texnik xizmat': '#ec4899', 
-  Boshqa: '#64748b' 
+const catColors = {
+  Jihozlar: '#7c3aed',
+  Kommunal: '#f59e0b',
+  Bar: '#06b6d4',
+  Mebel: '#10b981',
+  'Dasturiy ta\'minot': '#8b5cf6',
+  'Xodimlar (Kassa)': '#ef4444',
+  'Texnik xizmat': '#ec4899',
+  Boshqa: '#64748b'
 };
 
 const categoryIcons = {
@@ -43,6 +45,23 @@ export default function Spending() {
     return saved ? JSON.parse(saved) : defaultSpendings;
   });
 
+  const getSpendings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("spendings")
+        .select("*");
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setSpendings(data);
+      }
+    } catch (err) {
+      console.error("Error fetching spendings from Supabase:", err);
+    }
+  };
+
+  useEffect(() => {
+    getSpendings();
+  }, []);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ name: '', category: 'Jihozlar', amount: '', date: new Date().toISOString().slice(0, 10), icon: '🖥️' });
   const [filterCat, setFilterCat] = useState('All');
@@ -147,7 +166,7 @@ export default function Spending() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={byCategory} layout="vertical" margin={{ top: 0, right: 10, left: 20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
-                <XAxis type="number" tickFormatter={v => `${(v/1000000).toFixed(0)}M`} tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <XAxis type="number" tickFormatter={v => `${(v / 1000000).toFixed(0)}M`} tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis dataKey="name" type="category" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} width={80} />
                 <Tooltip formatter={v => [`${v.toLocaleString('uz-UZ')} so'm`, 'Chiqim']} contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
                 <Bar dataKey="value" radius={[0, 4, 4, 0]}>
@@ -185,33 +204,33 @@ export default function Spending() {
 
       {/* Add Modal */}
       {showAdd && (
-        <div 
-          style={{ 
-            position: 'fixed', 
-            inset: 0, 
-            background: 'rgba(0,0,0,0.7)', 
-            display: 'flex', 
-            alignItems: 'flex-start', 
-            justifyContent: 'center', 
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
             zIndex: 200,
             overflowY: 'auto',
             paddingTop: '60px',
             paddingBottom: '40px'
-          }} 
+          }}
           onClick={() => {
             setShowAdd(false);
             setCatDropdownOpen(false);
           }}
         >
-          <div 
-            style={{ 
-              background: 'var(--bg-card)', 
-              border: '1px solid var(--border)', 
-              borderRadius: 16, 
-              padding: 28, 
+          <div
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: 16,
+              padding: 28,
               width: 420,
               boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
-            }} 
+            }}
             onClick={e => e.stopPropagation()}
           >
             <div className="flex-between mb-20">
@@ -221,16 +240,16 @@ export default function Spending() {
                 setCatDropdownOpen(false);
               }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={18} /></button>
             </div>
-            
+
             <div className="section-gap">
               <div className="form-group">
                 <label className="form-label">Nomi</label>
                 <input className="form-input" placeholder="Xarajat nomi" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
               </div>
-              
+
               <div className="form-group" style={{ position: 'relative' }}>
                 <label className="form-label">Kategoriya</label>
-                <div 
+                <div
                   onClick={() => setCatDropdownOpen(!catDropdownOpen)}
                   className="form-input"
                   style={{
@@ -302,13 +321,13 @@ export default function Spending() {
                 <label className="form-label">Suma (so'mda)</label>
                 <input className="form-input" type="number" placeholder="0" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} />
               </div>
-              
+
               <div className="form-group">
                 <label className="form-label">Sana</label>
                 <input className="form-input" type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} />
               </div>
             </div>
-            
+
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
               <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleAdd}>Qo'shish</button>
               <button className="btn btn-secondary" onClick={() => {
