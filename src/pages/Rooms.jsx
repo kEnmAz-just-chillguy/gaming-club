@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { rooms as initialRooms } from '../data/mockData';
 import { Monitor, Users, Gamepad2, Clock, Plus, X, Check, Trash2, Edit } from 'lucide-react';
+import { useLocalStorage } from '../hooks/useLocalStorage';
+import { Monitor, Users, Gamepad2, Clock, Plus, X, Check } from 'lucide-react';
+import { formatSomRaw } from '../utils/currency';
 
 const statusConfig = {
   occupied: { label: 'Occupied', color: 'var(--red)', bg: 'rgba(239,68,68,0.12)', dot: '#ef4444' },
@@ -32,6 +35,11 @@ export default function Rooms() {
   const [newRoom, setNewRoom] = useState({ number: '', type: 'Standard', equipment: '', pricePerHour: '' });
   const [roomToDelete, setRoomToDelete] = useState(null);
   const [editRoom, setEditRoom] = useState(null);
+  const [rooms, setRooms] = useLocalStorage('gc_rooms_v2', initialRooms);
+  const [filter, setFilter] = useState('all');
+  const [selected, setSelected] = useState(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [newRoom, setNewRoom] = useState({ number: '', type: 'Standard', console: 'PS3' });
 
   const filtered = filter === 'all' ? rooms : rooms.filter(r => r.status === filter);
 
@@ -55,6 +63,7 @@ export default function Rooms() {
 
   const handleDelete = (id) => {
     setRoomToDelete(id);
+    setNewRoom({ number: '', type: 'Standard', console: 'PS3' });
   };
 
   const confirmDelete = () => {
@@ -105,6 +114,25 @@ export default function Rooms() {
                 >
                   <Trash2 size={14} style={{ marginRight: 6 }} /> Delete
                 </button>
+              {room.status === 'occupied' && (
+                <div style={{ marginTop: 12, padding: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Current Session Active</div>
+                </div>
+              )}
+              <div className="room-meta">
+                <div className="flex-gap" style={{ gap: 6 }}>
+                  <Gamepad2 size={12} color="var(--text-muted)" />
+                  <span className="room-pcs">{room.console}</span>
+                </div>
+                {room.since && (
+                  <div className="flex-gap" style={{ gap: 6 }}>
+                    <Clock size={12} color="var(--text-muted)" />
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{room.since}</span>
+                  </div>
+                )}
+                {room.status === 'occupied' && room.revenue > 0 && (
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--green)' }}>{formatSomRaw(room.revenue)}</span>
+                )}
               </div>
             </div>
           );
