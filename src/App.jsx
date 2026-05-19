@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import Dashboard from './pages/Dashboard';
@@ -13,6 +13,8 @@ import Appearance from './pages/Appearance';
 import Settings from './pages/Settings';
 import RoomDetail from './pages/RoomDetail';
 import Login from './pages/Login';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 function ProtectedLayout() {
   const { user } = useAuth();
