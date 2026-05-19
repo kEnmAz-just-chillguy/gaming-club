@@ -1,180 +1,167 @@
-import { useState } from 'react';
-import { Save, Bell, Shield, Globe, Clock, Wifi, Server, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Save, User, CheckCircle, Eye, EyeOff, ChevronDown, Edit2 } from 'lucide-react';
 
-const Section = ({ icon: Icon, title, children }) => (
-  <div className="card">
-    <div className="card-header" style={{ marginBottom: 20 }}>
-      <div className="flex-gap">
-        <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(124,58,237,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Icon size={16} color="var(--accent-light)" />
-        </div>
-        <div className="card-title">{title}</div>
-      </div>
-    </div>
-    {children}
-  </div>
-);
+const ROLES = ['Super Admin', 'Admin', 'Manager', 'Cashier', 'Operator'];
 
 export default function Settings() {
+  const defaults = {
+    name: 'Alisher Nazarov',
+    role: 'Super Admin',
+    email: 'alisher@gamezone.uz',
+    phone: '+998 90 123 45 67',
+    password: 'admin1234',
+  };
+
+  const [profile, setProfile] = useState(() => {
+    try {
+      const saved = localStorage.getItem('user_profile');
+      const parsed = saved ? JSON.parse(saved) : null;
+      return (parsed && parsed.name) ? parsed : defaults;
+    } catch {
+      return defaults;
+    }
+  });
+
   const [saved, setSaved] = useState(false);
-  const [club, setClub] = useState({ name: 'GameZone Club', address: '123 Gaming Street, Tech City', phone: '+1 555 0123', email: 'admin@gamezone.com', currency: 'USD', timezone: 'UTC+5', openTime: '09:00', closeTime: '02:00', capacity: 120, sessionRate: 5 });
-  const [notifs, setNotifs] = useState({ emailAlerts: true, lowStock: true, maintenanceAlerts: true, dailyReport: true, newSession: false, revenueAlerts: true });
-  const [security, setSecurity] = useState({ twoFactor: false, sessionTimeout: '30', autoLogout: true, activityLog: true });
+  const [showPassword, setShowPassword] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('user_profile', JSON.stringify(profile));
+  }, [profile]);
 
   const handleSave = () => {
+    localStorage.setItem('user_profile', JSON.stringify(profile));
     setSaved(true);
+    setIsEditing(false);
     setTimeout(() => setSaved(false), 2500);
   };
+
+  const initials = profile.name
+    ? profile.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : 'U';
 
   return (
     <div className="page-content fade-in">
       <div className="page-header-row mb-20">
         <div className="page-header" style={{ marginBottom: 0 }}>
           <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 22 }}>Settings</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>Configure your gaming club preferences</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>Manage your profile information</p>
         </div>
-        <button className="btn btn-primary" onClick={handleSave}>
-          {saved ? <><RefreshCw size={14} /> Saved!</> : <><Save size={14} /> Save Changes</>}
-        </button>
+        {!isEditing ? (
+          <button className="btn" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }} onClick={() => setIsEditing(true)}>
+            <Edit2 size={14} /> Edit Profile
+          </button>
+        ) : (
+          <button className="btn btn-primary" onClick={handleSave}>
+            <Save size={14} /> Save Changes
+          </button>
+        )}
       </div>
 
       {saved && (
-        <div style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 10, padding: '12px 18px', marginBottom: 20, color: 'var(--green)', fontSize: 13, fontWeight: 500 }}>
-          ✅ Settings saved successfully!
+        <div style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 10, padding: '12px 18px', marginBottom: 20, color: 'var(--green)', fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <CheckCircle size={15} /> Profile saved successfully!
         </div>
       )}
 
-      <div className="section-gap">
-        {/* Club Info */}
-        <Section icon={Globe} title="Club Information">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            {[
-              ['Club Name', 'name', 'text', 'GameZone Club'],
-              ['Address', 'address', 'text', '123 Gaming St'],
-              ['Phone', 'phone', 'tel', '+1 555 0123'],
-              ['Email', 'email', 'email', 'admin@gamezone.com'],
-              ['Currency', 'currency', null, null, ['USD', 'EUR', 'GBP', 'AED', 'RUB']],
-              ['Timezone', 'timezone', null, null, ['UTC+0', 'UTC+1', 'UTC+3', 'UTC+5', 'UTC+8']],
-            ].map(([label, key, type, ph, opts]) => (
-              <div key={key} className="form-group">
-                <label className="form-label">{label}</label>
-                {opts ? (
-                  <select className="form-input" value={club[key]} onChange={e => setClub(p => ({ ...p, [key]: e.target.value }))}>
-                    {opts.map(o => <option key={o}>{o}</option>)}
-                  </select>
-                ) : (
-                  <input className="form-input" type={type} placeholder={ph} value={club[key]} onChange={e => setClub(p => ({ ...p, [key]: e.target.value }))} />
-                )}
-              </div>
-            ))}
+      <div className="card">
+        {/* Avatar row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginBottom: 28, paddingBottom: 20, borderBottom: '1px solid var(--border)' }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: '50%',
+            background: 'linear-gradient(135deg, var(--accent), var(--cyan))',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 22, fontWeight: 700, color: '#fff', flexShrink: 0,
+            boxShadow: '0 0 20px var(--accent-glow)',
+          }}>
+            {initials || <User size={26} />}
           </div>
-        </Section>
-
-        {/* Operating Hours & Pricing */}
-        <Section icon={Clock} title="Operating Hours & Pricing">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 16 }}>
-            {[
-              ['Opening Time', 'openTime', 'time'],
-              ['Closing Time', 'closeTime', 'time'],
-              ['Total Capacity', 'capacity', 'number'],
-              ['Session Rate ($/hr)', 'sessionRate', 'number'],
-            ].map(([label, key, type]) => (
-              <div key={key} className="form-group">
-                <label className="form-label">{label}</label>
-                <input className="form-input" type={type} value={club[key]} onChange={e => setClub(p => ({ ...p, [key]: e.target.value }))} />
-              </div>
-            ))}
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 17, color: 'var(--text-primary)' }}>{profile.name || 'Your Name'}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>{profile.role}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{profile.email || 'your@email.com'}</div>
           </div>
-        </Section>
+        </div>
 
-        {/* Notifications */}
-        <Section icon={Bell} title="Notifications">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
-            {[
-              ['Email Alerts', 'emailAlerts', 'Get email notifications for critical events'],
-              ['Low Stock Alerts', 'lowStock', 'Alert when bar items run below threshold'],
-              ['Maintenance Alerts', 'maintenanceAlerts', 'Notify when rooms need maintenance'],
-              ['Daily Report', 'dailyReport', 'Receive daily revenue and activity summary'],
-              ['New Session Alerts', 'newSession', 'Ping when a new gaming session starts'],
-              ['Revenue Alerts', 'revenueAlerts', 'Alert on significant revenue milestones'],
-            ].map(([label, key, sub], i) => (
-              <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderBottom: '1px solid var(--border)', paddingRight: i % 2 === 0 ? 20 : 0 }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{label}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{sub}</div>
-                </div>
-                <label className="toggle" style={{ marginLeft: 16 }}>
-                  <input type="checkbox" checked={notifs[key]} onChange={() => setNotifs(p => ({ ...p, [key]: !p[key] }))} />
-                  <span className="toggle-slider" />
-                </label>
-              </div>
-            ))}
+        {/* Form — two columns */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 28px' }}>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Full Name</label>
+            <input
+              className="form-input"
+              placeholder="Enter your full name"
+              value={profile.name}
+              onChange={e => setProfile(p => ({ ...p, name: e.target.value }))}
+              disabled={!isEditing}
+            />
           </div>
-        </Section>
 
-        {/* Security */}
-        <Section icon={Shield} title="Security">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-            {[
-              ['Two-Factor Authentication', 'twoFactor', 'Require 2FA for all admin logins', true],
-              ['Auto Logout', 'autoLogout', 'Automatically log out after inactivity', true],
-              ['Activity Log', 'activityLog', 'Keep detailed logs of all admin actions', true],
-            ].map(([label, key, sub]) => (
-              <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderBottom: '1px solid var(--border)' }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{label}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{sub}</div>
-                </div>
-                <label className="toggle">
-                  <input type="checkbox" checked={security[key]} onChange={() => setSecurity(p => ({ ...p, [key]: !p[key] }))} />
-                  <span className="toggle-slider" />
-                </label>
-              </div>
-            ))}
-            <div style={{ padding: '14px 0' }}>
-              <div className="form-group">
-                <label className="form-label">Session Timeout (minutes)</label>
-                <input className="form-input" type="number" style={{ maxWidth: 160 }} value={security.sessionTimeout} onChange={e => setSecurity(p => ({ ...p, sessionTimeout: e.target.value }))} />
-              </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Role</label>
+            <div style={{ position: 'relative' }}>
+              <select
+                className="form-input"
+                value={profile.role}
+                onChange={e => setProfile(p => ({ ...p, role: e.target.value }))}
+                style={{ paddingRight: 40, cursor: isEditing ? 'pointer' : 'default', appearance: 'none', WebkitAppearance: 'none', width: '100%', opacity: !isEditing ? 0.7 : 1 }}
+                disabled={!isEditing}
+              >
+                {ROLES.map(r => <option key={r}>{r}</option>)}
+              </select>
+              <ChevronDown size={16} style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-muted)' }} />
             </div>
           </div>
-        </Section>
 
-        {/* System Info */}
-        <Section icon={Server} title="System Info">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {[
-              ['Version', 'v1.0.0'],
-              ['Build', '2025.05.14'],
-              ['Environment', 'Production'],
-              ['Data Storage', 'Local (Frontend)'],
-              ['Last Backup', 'N/A'],
-              ['Status', '🟢 Operational'],
-            ].map(([k, v]) => (
-              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border)' }}>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{k}</span>
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{v}</span>
-              </div>
-            ))}
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Email</label>
+            <input
+              className="form-input"
+              type="email"
+              placeholder="example@mail.com"
+              value={profile.email}
+              onChange={e => setProfile(p => ({ ...p, email: e.target.value }))}
+              disabled={!isEditing}
+            />
           </div>
-        </Section>
 
-        {/* Danger Zone */}
-        <div className="card" style={{ borderColor: 'rgba(239,68,68,0.3)' }}>
-          <div className="card-header" style={{ marginBottom: 16 }}>
-            <div className="flex-gap">
-              <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(239,68,68,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Shield size={16} color="var(--red)" />
-              </div>
-              <div className="card-title" style={{ color: 'var(--red)' }}>Danger Zone</div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Phone Number</label>
+            <input
+              className="form-input"
+              type="tel"
+              placeholder="+998 90 123 45 67"
+              value={profile.phone}
+              onChange={e => setProfile(p => ({ ...p, phone: e.target.value }))}
+              disabled={!isEditing}
+            />
+          </div>
+
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Password</label>
+            <div style={{ position: 'relative' }}>
+              <input
+                className="form-input"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Enter new password"
+                value={profile.password}
+                onChange={e => setProfile(p => ({ ...p, password: e.target.value }))}
+                style={{ paddingRight: 44, width: '100%' }}
+                disabled={!isEditing}
+              />
+              <button
+                onClick={() => setShowPassword(v => !v)}
+                style={{
+                  position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--text-muted)', display: 'flex', alignItems: 'center',
+                  padding: 0
+                }}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <button className="btn btn-danger">Reset All Data</button>
-            <button className="btn btn-danger">Clear History</button>
-            <button className="btn btn-danger">Factory Reset</button>
-          </div>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 12 }}>⚠️ These actions cannot be undone. This is a frontend-only demo — no real data will be deleted.</p>
         </div>
       </div>
     </div>
