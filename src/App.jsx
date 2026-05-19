@@ -11,6 +11,38 @@ import Bars from './pages/Bars';
 import History from './pages/History';
 import Appearance from './pages/Appearance';
 import Settings from './pages/Settings';
+import RoomDetail from './pages/RoomDetail';
+import Login from './pages/Login';
+
+function ProtectedLayout() {
+  const { user } = useAuth();
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return (
+    <div className="app-layout">
+      <Sidebar />
+      <div className="main-content">
+        <Topbar />
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/rooms" element={<Rooms />} />
+          <Route path="/statistics" element={<Statistics />} />
+          <Route path="/employees" element={<Employees />} />
+          <Route path="/spending" element={<Spending />} />
+          <Route path="/bars" element={<Bars />} />
+          <Route path="/history" element={<History />} />
+          <Route path="/appearance" element={<Appearance />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/room/:id" element={<RoomDetail />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   useEffect(() => {
@@ -23,24 +55,15 @@ export default function App() {
   }, []);
 
   return (
-    <BrowserRouter>
-      <div className="app-layout">
-        <Sidebar />
-        <div className="main-content">
-          <Topbar />
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/rooms" element={<Rooms />} />
-            <Route path="/statistics" element={<Statistics />} />
-            <Route path="/employees" element={<Employees />} />
-            <Route path="/spending" element={<Spending />} />
-            <Route path="/bars" element={<Bars />} />
-            <Route path="/history" element={<History />} />
-            <Route path="/appearance" element={<Appearance />} />
-            <Route path="/settings" element={<Settings />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/*" element={<ProtectedLayout />} />
           </Routes>
-        </div>
-      </div>
-    </BrowserRouter>
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

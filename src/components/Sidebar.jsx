@@ -6,10 +6,11 @@ import {
   ChevronRight, Gamepad2
 } from 'lucide-react';
 import { rooms as initialRooms } from '../data/mockData';
+import { useAuth } from '../context/AuthContext';
 
 const navItems = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard, badge: null },
-  { path: '/rooms', label: 'Rooms', icon: Monitor, badge: null },
+  { path: '/', label: 'Dashboard', icon: LayoutDashboard, badge: 'rooms' },
+  { path: '/rooms', label: 'Manage Rooms', icon: Monitor, badge: null },
   { path: '/statistics', label: 'Statistics', icon: BarChart3, badge: null },
   { path: '/employees', label: 'Employees', icon: Users, badge: null },
   { path: '/spending', label: 'Spending', icon: Wallet, badge: null },
@@ -23,10 +24,11 @@ export default function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [roomsCount, setRoomsCount] = useState(initialRooms.length);
+  const { user } = useAuth();
 
   useEffect(() => {
     const updateCount = () => {
-      const saved = localStorage.getItem('gaming_club_rooms');
+      const saved = localStorage.getItem('gc_rooms_v2');
       if (saved) {
         try {
           setRoomsCount(JSON.parse(saved).length);
@@ -76,11 +78,11 @@ export default function Sidebar() {
       </div>
 
       <div className="sidebar-footer">
-        <div className="user-card">
-          <div className="user-avatar">A</div>
+        <div className="user-card" onClick={() => navigate('/settings')} style={{ cursor: 'pointer' }}>
+          <div className="user-avatar">{user?.name ? user.name.charAt(0).toUpperCase() : 'A'}</div>
           <div className="user-info">
-            <div className="user-name">Admin User</div>
-            <div className="user-role">Super Admin</div>
+            <div className="user-name">{user?.name || 'Admin User'}</div>
+            <div className="user-role">{user?.role || 'Super Admin'}</div>
           </div>
           <ChevronRight size={14} color="var(--text-muted)" />
         </div>

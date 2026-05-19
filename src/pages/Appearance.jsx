@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTheme } from '../context/ThemeContext';
 
 const themes = [
   { id: 'purple', name: 'Cosmic Purple', primary: '#7c3aed', secondary: '#06b6d4' },
@@ -13,6 +14,7 @@ const fonts = ['Inter', 'Roboto', 'Outfit', 'Poppins', 'DM Sans'];
 const borderRadii = [{ label: 'Sharp', value: '4px' }, { label: 'Normal', value: '14px' }, { label: 'Rounded', value: '20px' }];
 
 export default function Appearance() {
+  const { isDark, toggleTheme } = useTheme();
   const [activeTheme, setActiveTheme] = useState('purple');
   const [activeFont, setActiveFont] = useState('Inter');
   const [activeRadius, setActiveRadius] = useState('Normal');
