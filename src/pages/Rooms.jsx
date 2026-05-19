@@ -8,12 +8,6 @@ const statusConfig = {
   maintenance: { label: 'Maintenance', color: 'var(--orange)', bg: 'rgba(245,158,11,0.12)', dot: '#f59e0b' },
 };
 
-const typeOptions = [
-  { id: 'Obshiy', label: 'Obshiy', icon: Users },
-  { id: 'VIP', label: 'VIP', icon: Monitor },
-  { id: 'PlayStation', label: 'PlayStation', icon: Gamepad2 }
-];
-
 export default function Rooms() {
   const [rooms, setRooms] = useState(() => {
     const saved = localStorage.getItem('gaming_club_rooms');
@@ -35,11 +29,9 @@ export default function Rooms() {
   const [filter, setFilter] = useState('all');
   const [selected, setSelected] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
-  const [newRoom, setNewRoom] = useState({ number: '', type: 'Obshiy', equipment: '', pricePerHour: '' });
+  const [newRoom, setNewRoom] = useState({ number: '', type: 'Standard', equipment: '', pricePerHour: '' });
   const [roomToDelete, setRoomToDelete] = useState(null);
   const [editRoom, setEditRoom] = useState(null);
-  const [editTypeOpen, setEditTypeOpen] = useState(false);
-  const [addTypeOpen, setAddTypeOpen] = useState(false);
 
   const filtered = filter === 'all' ? rooms : rooms.filter(r => r.status === filter);
 
@@ -52,15 +44,13 @@ export default function Rooms() {
     if (!newRoom.number) return;
     setRooms(prev => [...prev, { id: Date.now(), ...newRoom, status: 'available', game: null, player: null, since: null, revenue: 0 }]);
     setShowAdd(false);
-    setNewRoom({ number: '', type: 'Obshiy', equipment: '', pricePerHour: '' });
-    setAddTypeOpen(false);
+    setNewRoom({ number: '', type: 'Standard', equipment: '', pricePerHour: '' });
   };
 
   const handleEdit = () => {
     if (!editRoom.number) return;
     setRooms(prev => prev.map(r => r.id === editRoom.id ? { ...r, ...editRoom } : r));
     setEditRoom(null);
-    setEditTypeOpen(false);
   };
 
   const handleDelete = (id) => {
@@ -156,96 +146,24 @@ export default function Rooms() {
 
       {/* Edit Room Modal */}
       {editRoom && (
-        <div 
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} 
-          onClick={() => {
-            setEditRoom(null);
-            setEditTypeOpen(false);
-          }}
-        >
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={() => setEditRoom(null)}>
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: 28, minWidth: 340 }} onClick={e => e.stopPropagation()}>
             <div className="flex-between mb-20">
               <h3>Edit Room</h3>
-              <button onClick={() => {
-                setEditRoom(null);
-                setEditTypeOpen(false);
-              }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={18} /></button>
+              <button onClick={() => setEditRoom(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={18} /></button>
             </div>
             <div className="section-gap">
               <div className="form-group">
                 <label className="form-label">Room Number</label>
                 <input className="form-input" placeholder="e.g. E-01" value={editRoom.number} onChange={e => setEditRoom(p => ({ ...p, number: e.target.value }))} />
               </div>
-              <div className="form-group" style={{ position: 'relative' }}>
+              <div className="form-group">
                 <label className="form-label">Type</label>
-                <div 
-                  onClick={() => setEditTypeOpen(!editTypeOpen)}
-                  className="form-input"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    cursor: 'pointer',
-                    background: 'var(--bg-secondary)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '10px 14px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    {(() => {
-                      const SelectedIcon = typeOptions.find(o => o.id === editRoom.type)?.icon || Users;
-                      return <SelectedIcon size={16} style={{ color: 'var(--accent)' }} />;
-                    })()}
-                    <span style={{ color: 'var(--text-primary)', fontSize: 13 }}>{editRoom.type}</span>
-                  </div>
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{editTypeOpen ? '▲' : '▼'}</span>
-                </div>
-
-                {editTypeOpen && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: 'calc(100% + 4px)',
-                      left: 0,
-                      right: 0,
-                      background: 'var(--bg-card)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 8,
-                      boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-                      zIndex: 210,
-                      padding: 4,
-                    }}
-                  >
-                    {typeOptions.map(opt => {
-                      const Icon = opt.icon;
-                      return (
-                        <div
-                          key={opt.id}
-                          onClick={() => {
-                            setEditRoom(p => ({ ...p, type: opt.id }));
-                            setEditTypeOpen(false);
-                          }}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 10,
-                            padding: '10px 12px',
-                            borderRadius: 6,
-                            cursor: 'pointer',
-                            background: editRoom.type === opt.id ? 'var(--accent-glow)' : 'transparent',
-                            transition: 'background 0.2s',
-                          }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card-hover)'}
-                          onMouseLeave={e => e.currentTarget.style.background = editRoom.type === opt.id ? 'var(--accent-glow)' : 'transparent'}
-                        >
-                          <Icon size={16} style={{ color: 'var(--accent)' }} />
-                          <span style={{ color: 'var(--text-primary)', fontSize: 13 }}>{opt.label}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                <select className="form-input" value={editRoom.type} onChange={e => setEditRoom(p => ({ ...p, type: e.target.value }))}>
+                  <option>Obshiy</option>
+                  <option>VIP</option>
+                  <option>PlayStation</option>
+                </select>
               </div>
               <div className="form-group">
                 <label className="form-label">Equipment</label>
@@ -258,10 +176,7 @@ export default function Rooms() {
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
               <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleEdit}>Save Changes</button>
-              <button className="btn btn-secondary" onClick={() => {
-                setEditRoom(null);
-                setEditTypeOpen(false);
-              }}>Cancel</button>
+              <button className="btn btn-secondary" onClick={() => setEditRoom(null)}>Cancel</button>
             </div>
           </div>
         </div>
@@ -269,96 +184,24 @@ export default function Rooms() {
 
       {/* Add Room Modal */}
       {showAdd && (
-        <div 
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} 
-          onClick={() => {
-            setShowAdd(false);
-            setAddTypeOpen(false);
-          }}
-        >
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={() => setShowAdd(false)}>
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: 28, minWidth: 340 }} onClick={e => e.stopPropagation()}>
             <div className="flex-between mb-20">
               <h3>Add New Room</h3>
-              <button onClick={() => {
-                setShowAdd(false);
-                setAddTypeOpen(false);
-              }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={18} /></button>
+              <button onClick={() => setShowAdd(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={18} /></button>
             </div>
             <div className="section-gap">
               <div className="form-group">
                 <label className="form-label">Room Number</label>
                 <input className="form-input" placeholder="e.g. E-01" value={newRoom.number} onChange={e => setNewRoom(p => ({ ...p, number: e.target.value }))} />
               </div>
-              <div className="form-group" style={{ position: 'relative' }}>
+              <div className="form-group">
                 <label className="form-label">Type</label>
-                <div 
-                  onClick={() => setAddTypeOpen(!addTypeOpen)}
-                  className="form-input"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    cursor: 'pointer',
-                    background: 'var(--bg-secondary)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '10px 14px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    {(() => {
-                      const SelectedIcon = typeOptions.find(o => o.id === newRoom.type)?.icon || Users;
-                      return <SelectedIcon size={16} style={{ color: 'var(--accent)' }} />;
-                    })()}
-                    <span style={{ color: 'var(--text-primary)', fontSize: 13 }}>{newRoom.type}</span>
-                  </div>
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{addTypeOpen ? '▲' : '▼'}</span>
-                </div>
-
-                {addTypeOpen && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: 'calc(100% + 4px)',
-                      left: 0,
-                      right: 0,
-                      background: 'var(--bg-card)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 8,
-                      boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-                      zIndex: 210,
-                      padding: 4,
-                    }}
-                  >
-                    {typeOptions.map(opt => {
-                      const Icon = opt.icon;
-                      return (
-                        <div
-                          key={opt.id}
-                          onClick={() => {
-                            setNewRoom(p => ({ ...p, type: opt.id }));
-                            setAddTypeOpen(false);
-                          }}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 10,
-                            padding: '10px 12px',
-                            borderRadius: 6,
-                            cursor: 'pointer',
-                            background: newRoom.type === opt.id ? 'var(--accent-glow)' : 'transparent',
-                            transition: 'background 0.2s',
-                          }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card-hover)'}
-                          onMouseLeave={e => e.currentTarget.style.background = newRoom.type === opt.id ? 'var(--accent-glow)' : 'transparent'}
-                        >
-                          <Icon size={16} style={{ color: 'var(--accent)' }} />
-                          <span style={{ color: 'var(--text-primary)', fontSize: 13 }}>{opt.label}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                <select className="form-input" value={newRoom.type} onChange={e => setNewRoom(p => ({ ...p, type: e.target.value }))}>
+                  <option>Obshiy</option>
+                  <option>VIP</option>
+                  <option>PlayStation</option>
+                </select>
               </div>
               <div className="form-group">
                 <label className="form-label">Equipment</label>
