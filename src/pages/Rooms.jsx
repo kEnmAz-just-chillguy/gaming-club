@@ -1,10 +1,6 @@
 import { useState, useEffect } from 'react';
 import { rooms as initialRooms } from '../data/mockData';
 import { Monitor, Users, Gamepad2, Clock, Plus, X, Check, Trash2, Edit } from 'lucide-react';
-import { useLocalStorage } from '../hooks/useLocalStorage';
-import { formatSomRaw } from '../utils/currency';
-
-import { supabase } from '../config/supabase';
 
 const statusConfig = {
   occupied: { label: 'Occupied', color: 'var(--red)', bg: 'rgba(239,68,68,0.12)', dot: '#ef4444' },
@@ -12,26 +8,38 @@ const statusConfig = {
   maintenance: { label: 'Maintenance', color: 'var(--orange)', bg: 'rgba(245,158,11,0.12)', dot: '#f59e0b' },
 };
 
+import { supabase } from '../config/supabase';
+
 export default function Rooms() {
-  const [rooms, setRooms] = useLocalStorage('gc_rooms_v2', initialRooms);
-  const [filter, setFilter] = useState('all');
-  const [selected, setSelected] = useState(null);
-  const [showAdd, setShowAdd] = useState(false);
-  const [newRoom, setNewRoom] = useState({ number: '', type: 'Standard', equipment: '', pricePerHour: '' });
-  const [roomToDelete, setRoomToDelete] = useState(null);
-  const [editRoom, setEditRoom] = useState(null);
+  const [rooms, setRooms] = useState(() => {
+    const saved = localStorage.getItem('gaming_club_rooms');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse rooms from localStorage', e);
+      }
+    }
+    return initialRooms;
+  });
+
+  const [loading, setLoading] = useState(false);
 
   const getRooms = async () => {
+    setLoading(true);
     try {
       const { data, error } = await supabase
-        .from("rooms")
-        .select("*");
+        .from('rooms')
+        .select('*')
+        .order('number', { ascending: true });
       if (error) throw error;
       if (data && data.length > 0) {
         setRooms(data);
       }
     } catch (err) {
       console.error("Error fetching rooms from Supabase:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -40,40 +48,124 @@ export default function Rooms() {
   }, []);
 
   useEffect(() => {
+    localStorage.setItem('gaming_club_rooms', JSON.stringify(rooms));
     window.dispatchEvent(new Event('rooms_updated'));
   }, [rooms]);
 
+  const [filter, setFilter] = useState('all');
+  const [selected, setSelected] = useState(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [newRoom, setNewRoom] = useState({ number: '', type: 'Obshiy', equipment: '', pricePerHour: '' });
+  const [roomToDelete, setRoomToDelete] = useState(null);
+  const [editRoom, setEditRoom] = useState(null);
+
   const filtered = filter === 'all' ? rooms : rooms.filter(r => r.status === filter);
 
-  const handleStatusChange = (id, newStatus) => {
-    setRooms(prev => prev.map(r => r.id === id ? { ...r, status: newStatus, player: null, game: null, since: null, revenue: 0 } : r));
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      const { error } = await supabase
+        .from('rooms')
+        .update({
+          status: newStatus,
+          player: null,
+          game: null,
+          since: null,
+          revenue: 0,
+          startTime: null,
+          endTime: null,
+          sessionMode: null
+        })
+        .eq('id', id);
+      if (error) throw error;
+      
+      setRooms(prev => prev.map(r => r.id === id ? { ...r, status: newStatus, player: null, game: null, since: null, revenue: 0, startTime: null, endTime: null, sessionMode: null } : r));
+    } catch (err) {
+      console.error("Failed to update status in Supabase:", err);
+      // Fallback
+      setRooms(prev => prev.map(r => r.id === id ? { ...r, status: newStatus, player: null, game: null, since: null, revenue: 0 } : r));
+    }
     setSelected(null);
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!newRoom.number) return;
-    setRooms(prev => [...prev, { id: Date.now(), ...newRoom, status: 'available', game: null, player: null, since: null, revenue: 0 }]);
+    const roomPayload = {
+      number: newRoom.number,
+      type: newRoom.type,
+      equipment: newRoom.equipment,
+      pricePerHour: newRoom.pricePerHour ? Number(newRoom.pricePerHour) : null,
+      status: 'available',
+      game: null,
+      player: null,
+      since: null,
+      revenue: 0
+    };
+
+    try {
+      const { data, error } = await supabase
+        .from('rooms')
+        .insert([roomPayload])
+        .select();
+      if (error) throw error;
+      
+      if (data && data[0]) {
+        setRooms(prev => [...prev, data[0]]);
+      } else {
+        setRooms(prev => [...prev, { id: Date.now(), ...roomPayload }]);
+      }
+    } catch (err) {
+      console.error("Failed to add room to Supabase:", err);
+      setRooms(prev => [...prev, { id: Date.now(), ...roomPayload }]);
+    }
+    
     setShowAdd(false);
-    setNewRoom({ number: '', type: 'Standard', equipment: '', pricePerHour: '' });
+    setNewRoom({ number: '', type: 'Obshiy', equipment: '', pricePerHour: '' });
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!editRoom.number) return;
-    setRooms(prev => prev.map(r => r.id === editRoom.id ? { ...r, ...editRoom } : r));
+    const roomPayload = {
+      number: editRoom.number,
+      type: editRoom.type,
+      equipment: editRoom.equipment,
+      pricePerHour: editRoom.pricePerHour ? Number(editRoom.pricePerHour) : null
+    };
+
+    try {
+      const { error } = await supabase
+        .from('rooms')
+        .update(roomPayload)
+        .eq('id', editRoom.id);
+      if (error) throw error;
+
+      setRooms(prev => prev.map(r => r.id === editRoom.id ? { ...r, ...editRoom } : r));
+    } catch (err) {
+      console.error("Failed to edit room in Supabase:", err);
+      setRooms(prev => prev.map(r => r.id === editRoom.id ? { ...r, ...editRoom } : r));
+    }
     setEditRoom(null);
   };
 
   const handleDelete = (id) => {
     setRoomToDelete(id);
-    setNewRoom({ number: '', type: 'Standard', console: 'PS3' });
   };
 
-  const confirmDelete = () => {
-    if (roomToDelete) {
+  const confirmDelete = async () => {
+    if (!roomToDelete) return;
+    try {
+      const { error } = await supabase
+        .from('rooms')
+        .delete()
+        .eq('id', roomToDelete);
+      if (error) throw error;
+
       setRooms(prev => prev.filter(r => r.id !== roomToDelete));
-      setSelected(null);
-      setRoomToDelete(null);
+    } catch (err) {
+      console.error("Failed to delete room from Supabase:", err);
+      setRooms(prev => prev.filter(r => r.id !== roomToDelete));
     }
+    setSelected(null);
+    setRoomToDelete(null);
   };
 
 
@@ -102,40 +194,20 @@ export default function Rooms() {
               </div>
               <div className="room-type">{room.type}</div>
               <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-                <button
-                  className="btn btn-secondary btn-sm"
+                <button 
+                  className="btn btn-secondary btn-sm" 
                   style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   onClick={(e) => { e.stopPropagation(); setEditRoom(room); }}
                 >
                   <Edit size={14} style={{ marginRight: 6 }} /> Edit
                 </button>
-                <button
-                  className="btn btn-sm"
+                <button 
+                  className="btn btn-sm" 
                   style={{ flex: 1, background: 'rgba(239,68,68,0.1)', color: 'var(--red)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   onClick={(e) => { e.stopPropagation(); setRoomToDelete(room.id); }}
                 >
                   <Trash2 size={14} style={{ marginRight: 6 }} /> Delete
                 </button>
-              </div>
-              {room.status === 'occupied' && (
-                <div style={{ marginTop: 12, padding: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: 8 }}>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Current Session Active</div>
-                </div>
-              )}
-              <div className="room-meta">
-                <div className="flex-gap" style={{ gap: 6 }}>
-                  <Gamepad2 size={12} color="var(--text-muted)" />
-                  <span className="room-pcs">{room.console}</span>
-                </div>
-                {room.since && (
-                  <div className="flex-gap" style={{ gap: 6 }}>
-                    <Clock size={12} color="var(--text-muted)" />
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{room.since}</span>
-                  </div>
-                )}
-                {room.status === 'occupied' && room.revenue > 0 && (
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--green)' }}>{formatSomRaw(room.revenue)}</span>
-                )}
               </div>
             </div>
           );
@@ -164,8 +236,8 @@ export default function Rooms() {
                 <button className="btn btn-danger btn-sm" onClick={() => handleStatusChange(selected.id, 'maintenance')}>Maintenance</button>
                 <button className="btn btn-secondary btn-sm" onClick={() => setSelected(null)}>Close</button>
               </div>
-              <button
-                className="btn btn-sm"
+              <button 
+                className="btn btn-sm" 
                 style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--red)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center' }}
                 onClick={() => handleDelete(selected.id)}>
                 <Trash2 size={14} style={{ marginRight: 4 }} /> Delete

@@ -3,18 +3,16 @@ import { spendings as initialSpendings, employees } from '../data/mockData';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Plus, X, Trash2, Wallet, AlertTriangle, TrendingUp, User } from 'lucide-react';
 
-import { supabase } from '../config/supabase';
-
 const categories = ['Jihozlar', 'Kommunal', 'Bar', 'Mebel', 'Dasturiy ta\'minot', 'Xodimlar (Kassa)', 'Texnik xizmat', 'Boshqa'];
-const catColors = {
-  Jihozlar: '#7c3aed',
-  Kommunal: '#f59e0b',
-  Bar: '#06b6d4',
-  Mebel: '#10b981',
-  'Dasturiy ta\'minot': '#8b5cf6',
-  'Xodimlar (Kassa)': '#ef4444',
-  'Texnik xizmat': '#ec4899',
-  Boshqa: '#64748b'
+const catColors = { 
+  Jihozlar: '#7c3aed', 
+  Kommunal: '#f59e0b', 
+  Bar: '#06b6d4', 
+  Mebel: '#10b981', 
+  'Dasturiy ta\'minot': '#8b5cf6', 
+  'Xodimlar (Kassa)': '#ef4444', 
+  'Texnik xizmat': '#ec4899', 
+  Boshqa: '#64748b' 
 };
 
 const categoryIcons = {
@@ -39,63 +37,117 @@ const defaultSpendings = [
   { id: 8, name: 'Tozalash vositalari', category: 'Texnik xizmat', amount: 1300000, date: '2025-05-12', icon: '🧹', color: 'rgba(16,185,129,0.2)', type: 'expense' },
 ];
 
+import { supabase } from '../config/supabase';
+
 export default function Spending() {
   const [spendings, setSpendings] = useState(() => {
     const saved = localStorage.getItem('gaming_club_spendings_list');
     return saved ? JSON.parse(saved) : defaultSpendings;
   });
 
+  const [loading, setLoading] = useState(false);
+
   const getSpendings = async () => {
+    setLoading(true);
     try {
       const { data, error } = await supabase
-        .from("spendings")
-        .select("*");
+        .from('spendings')
+        .select('*')
+        .order('date', { ascending: false });
       if (error) throw error;
       if (data && data.length > 0) {
         setSpendings(data);
+        localStorage.setItem('gaming_club_spendings_list', JSON.stringify(data));
       }
     } catch (err) {
       console.error("Error fetching spendings from Supabase:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     getSpendings();
   }, []);
+
   const [showAdd, setShowAdd] = useState(false);
+  const [txType, setTxType] = useState('expense'); // 'expense', 'employee_kasa'
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(employees[0]?.id || '');
   const [form, setForm] = useState({ name: '', category: 'Jihozlar', amount: '', date: new Date().toISOString().slice(0, 10), icon: '🖥️' });
   const [filterCat, setFilterCat] = useState('All');
   const [catDropdownOpen, setCatDropdownOpen] = useState(false);
+  const [empDropdownOpen, setEmpDropdownOpen] = useState(false);
 
   const saveSpendings = (updated) => {
     setSpendings(updated);
     localStorage.setItem('gaming_club_spendings_list', JSON.stringify(updated));
   };
 
-  const handleAdd = () => {
-    if (!form.name || !form.amount) return;
+  const handleAdd = async () => {
+    if (!form.amount) return;
+
+    let finalName = form.name;
+    let finalCategory = form.category;
+    let finalIcon = form.icon;
+
+    if (txType === 'employee_kasa') {
+      const emp = employees.find(e => e.id === Number(selectedEmployeeId));
+      finalName = `Kassadan olindi: ${emp ? emp.name : 'Xodim'}`;
+      finalCategory = 'Xodimlar (Kassa)';
+      finalIcon = '👤';
+    } else {
+      if (!finalName) return;
+    }
 
     const newTx = {
-      id: Date.now(),
-      name: form.name,
-      category: form.category,
+      name: finalName,
+      category: finalCategory,
       amount: Number(form.amount),
       date: form.date,
-      icon: form.icon,
+      icon: finalIcon,
       color: 'rgba(124,58,237,0.2)',
       type: 'expense'
     };
 
-    const updated = [newTx, ...spendings];
-    saveSpendings(updated);
+    try {
+      const { data, error } = await supabase
+        .from('spendings')
+        .insert([newTx])
+        .select();
+      if (error) throw error;
+
+      if (data && data[0]) {
+        saveSpendings([data[0], ...spendings]);
+      } else {
+        saveSpendings([{ id: Date.now(), ...newTx }, ...spendings]);
+      }
+    } catch (err) {
+      console.error("Failed to add spending to Supabase:", err);
+      saveSpendings([{ id: Date.now(), ...newTx }, ...spendings]);
+    }
+
     setShowAdd(false);
     setForm({ name: '', category: 'Jihozlar', amount: '', date: new Date().toISOString().slice(0, 10), icon: '🖥️' });
+    setTxType('expense');
     setCatDropdownOpen(false);
+    setEmpDropdownOpen(false);
   };
 
-  const handleDelete = (id) => {
-    const updated = spendings.filter(s => s.id !== id);
-    saveSpendings(updated);
+  const handleDelete = async (id) => {
+    try {
+      const { error } = await supabase
+        .from('spendings')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+
+      const updated = spendings.filter(s => s.id !== id);
+      saveSpendings(updated);
+    } catch (err) {
+      console.error("Failed to delete spending from Supabase:", err);
+      const updated = spendings.filter(s => s.id !== id);
+      saveSpendings(updated);
+    }
   };
 
   const filtered = filterCat === 'All' ? spendings : spendings.filter(s => s.category === filterCat);
@@ -107,6 +159,8 @@ export default function Spending() {
     value: spendings.filter(s => s.category === cat).reduce((a, s) => a + s.amount, 0),
     color: catColors[cat],
   })).filter(c => c.value > 0);
+
+  const currentEmployee = employees.find(e => e.id === Number(selectedEmployeeId)) || employees[0];
 
   return (
     <div className="page-content fade-in">
@@ -166,7 +220,7 @@ export default function Spending() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={byCategory} layout="vertical" margin={{ top: 0, right: 10, left: 20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
-                <XAxis type="number" tickFormatter={v => `${(v / 1000000).toFixed(0)}M`} tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <XAxis type="number" tickFormatter={v => `${(v/1000000).toFixed(0)}M`} tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis dataKey="name" type="category" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} width={80} />
                 <Tooltip formatter={v => [`${v.toLocaleString('uz-UZ')} so'm`, 'Chiqim']} contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
                 <Bar dataKey="value" radius={[0, 4, 4, 0]}>
@@ -204,33 +258,34 @@ export default function Spending() {
 
       {/* Add Modal */}
       {showAdd && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.7)',
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'center',
+        <div 
+          style={{ 
+            position: 'fixed', 
+            inset: 0, 
+            background: 'rgba(0,0,0,0.7)', 
+            display: 'flex', 
+            alignItems: 'flex-start', 
+            justifyContent: 'center', 
             zIndex: 200,
             overflowY: 'auto',
             paddingTop: '60px',
             paddingBottom: '40px'
-          }}
+          }} 
           onClick={() => {
             setShowAdd(false);
             setCatDropdownOpen(false);
+            setEmpDropdownOpen(false);
           }}
         >
-          <div
-            style={{
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              borderRadius: 16,
-              padding: 28,
+          <div 
+            style={{ 
+              background: 'var(--bg-card)', 
+              border: '1px solid var(--border)', 
+              borderRadius: 16, 
+              padding: 28, 
               width: 420,
               boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
-            }}
+            }} 
             onClick={e => e.stopPropagation()}
           >
             <div className="flex-between mb-20">
@@ -238,101 +293,246 @@ export default function Spending() {
               <button onClick={() => {
                 setShowAdd(false);
                 setCatDropdownOpen(false);
+                setEmpDropdownOpen(false);
               }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={18} /></button>
             </div>
-
+            
             <div className="section-gap">
+              {/* Type Selection */}
               <div className="form-group">
-                <label className="form-label">Nomi</label>
-                <input className="form-input" placeholder="Xarajat nomi" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
-              </div>
-
-              <div className="form-group" style={{ position: 'relative' }}>
-                <label className="form-label">Kategoriya</label>
-                <div
-                  onClick={() => setCatDropdownOpen(!catDropdownOpen)}
-                  className="form-input"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    cursor: 'pointer',
-                    background: 'var(--bg-secondary)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '10px 14px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span>{categoryIcons[form.category] || '💰'}</span>
-                    <span style={{ color: 'var(--text-primary)', fontSize: 13 }}>{form.category}</span>
-                  </div>
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{catDropdownOpen ? '▲' : '▼'}</span>
-                </div>
-
-                {catDropdownOpen && (
-                  <div
+                <label className="form-label">Tranzaksiya turi</label>
+                <div style={{ display: 'flex', gap: 8, background: 'rgba(0,0,0,0.2)', padding: 4, borderRadius: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => setTxType('expense')}
                     style={{
-                      position: 'absolute',
-                      top: 'calc(100% + 4px)',
-                      left: 0,
-                      right: 0,
-                      background: 'var(--bg-card)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 8,
-                      boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-                      zIndex: 210,
-                      maxHeight: 180,
-                      overflowY: 'auto',
-                      padding: 4,
+                      flex: 1,
+                      padding: '8px 10px',
+                      borderRadius: 6,
+                      border: 'none',
+                      background: txType === 'expense' ? 'var(--accent)' : 'none',
+                      color: '#fff',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: 'pointer'
                     }}
                   >
-                    {categories
-                      .filter(c => c !== 'Xodimlar (Kassa)')
-                      .map(c => (
+                    Oddiy chiqim
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTxType('employee_kasa')}
+                    style={{
+                      flex: 1,
+                      padding: '8px 10px',
+                      borderRadius: 6,
+                      border: 'none',
+                      background: txType === 'employee_kasa' ? 'var(--red)' : 'none',
+                      color: '#fff',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Kassadan olish (Ishchi)
+                  </button>
+                </div>
+              </div>
+
+              {txType === 'employee_kasa' ? (
+                <div className="form-group" style={{ position: 'relative' }}>
+                  <label className="form-label">Ishchini tanlang</label>
+                  <div 
+                    onClick={() => setEmpDropdownOpen(!empDropdownOpen)}
+                    className="form-input"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      cursor: 'pointer',
+                      background: 'var(--bg-secondary)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-sm)',
+                      padding: '10px 14px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div 
+                        style={{ 
+                          width: 22, 
+                          height: 22, 
+                          borderRadius: '50%', 
+                          background: currentEmployee?.color || 'var(--accent)', 
+                          color: '#fff', 
+                          fontSize: 9, 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          fontWeight: 700
+                        }}
+                      >
+                        {currentEmployee?.avatar || '👤'}
+                      </div>
+                      <span style={{ color: 'var(--text-primary)', fontSize: 13 }}>{currentEmployee?.name} ({currentEmployee?.role})</span>
+                    </div>
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{empDropdownOpen ? '▲' : '▼'}</span>
+                  </div>
+
+                  {empDropdownOpen && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 4px)',
+                        left: 0,
+                        right: 0,
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 8,
+                        boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                        zIndex: 210,
+                        maxHeight: 180,
+                        overflowY: 'auto',
+                        padding: 4,
+                      }}
+                    >
+                      {employees.map(emp => (
                         <div
-                          key={c}
+                          key={emp.id}
                           onClick={() => {
-                            setForm(p => ({ ...p, category: c, icon: categoryIcons[c] || '💰' }));
-                            setCatDropdownOpen(false);
+                            setSelectedEmployeeId(emp.id);
+                            setEmpDropdownOpen(false);
                           }}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: 8,
+                            gap: 10,
                             padding: '10px 12px',
                             borderRadius: 6,
                             cursor: 'pointer',
-                            background: form.category === c ? 'var(--accent-glow)' : 'transparent',
+                            background: Number(selectedEmployeeId) === emp.id ? 'var(--accent-glow)' : 'transparent',
                             transition: 'background 0.2s',
                           }}
                           onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card-hover)'}
-                          onMouseLeave={e => e.currentTarget.style.background = form.category === c ? 'var(--accent-glow)' : 'transparent'}
+                          onMouseLeave={e => e.currentTarget.style.background = Number(selectedEmployeeId) === emp.id ? 'var(--accent-glow)' : 'transparent'}
                         >
-                          <span>{categoryIcons[c] || '💰'}</span>
-                          <span style={{ color: 'var(--text-primary)', fontSize: 13 }}>{c}</span>
+                          <div 
+                            style={{ 
+                              width: 20, 
+                              height: 20, 
+                              borderRadius: '50%', 
+                              background: emp.color || 'var(--accent)', 
+                              color: '#fff', 
+                              fontSize: 9, 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              fontWeight: 700
+                            }}
+                          >
+                            {emp.avatar}
+                          </div>
+                          <span style={{ color: 'var(--text-primary)', fontSize: 13 }}>{emp.name} ({emp.role})</span>
                         </div>
                       ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Nomi</label>
+                    <input className="form-input" placeholder="Xarajat nomi" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
                   </div>
-                )}
-              </div>
+                  
+                  <div className="form-group" style={{ position: 'relative' }}>
+                    <label className="form-label">Kategoriya</label>
+                    <div 
+                      onClick={() => setCatDropdownOpen(!catDropdownOpen)}
+                      className="form-input"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        cursor: 'pointer',
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '10px 14px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span>{categoryIcons[form.category] || '💰'}</span>
+                        <span style={{ color: 'var(--text-primary)', fontSize: 13 }}>{form.category}</span>
+                      </div>
+                      <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{catDropdownOpen ? '▲' : '▼'}</span>
+                    </div>
+
+                    {catDropdownOpen && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 'calc(100% + 4px)',
+                          left: 0,
+                          right: 0,
+                          background: 'var(--bg-card)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 8,
+                          boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                          zIndex: 210,
+                          maxHeight: 180,
+                          overflowY: 'auto',
+                          padding: 4,
+                        }}
+                      >
+                        {categories
+                          .filter(c => c !== 'Xodimlar (Kassa)')
+                          .map(c => (
+                            <div
+                              key={c}
+                              onClick={() => {
+                                setForm(p => ({ ...p, category: c, icon: categoryIcons[c] || '💰' }));
+                                setCatDropdownOpen(false);
+                              }}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                padding: '10px 12px',
+                                borderRadius: 6,
+                                cursor: 'pointer',
+                                background: form.category === c ? 'var(--accent-glow)' : 'transparent',
+                                transition: 'background 0.2s',
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card-hover)'}
+                              onMouseLeave={e => e.currentTarget.style.background = form.category === c ? 'var(--accent-glow)' : 'transparent'}
+                            >
+                              <span>{categoryIcons[c] || '💰'}</span>
+                              <span style={{ color: 'var(--text-primary)', fontSize: 13 }}>{c}</span>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
 
               <div className="form-group">
                 <label className="form-label">Suma (so'mda)</label>
                 <input className="form-input" type="number" placeholder="0" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} />
               </div>
-
+              
               <div className="form-group">
                 <label className="form-label">Sana</label>
                 <input className="form-input" type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} />
               </div>
             </div>
-
+            
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
               <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleAdd}>Qo'shish</button>
               <button className="btn btn-secondary" onClick={() => {
                 setShowAdd(false);
                 setCatDropdownOpen(false);
+                setEmpDropdownOpen(false);
               }}>Bekor qilish</button>
             </div>
           </div>
@@ -341,3 +541,4 @@ export default function Spending() {
     </div>
   );
 }
+
