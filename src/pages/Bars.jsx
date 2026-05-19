@@ -14,24 +14,24 @@ export default function Bars() {
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState(null);
-  const [form, setForm] = useState({ name: '', price: '', quantity: '', unit: 'dona' });
+  const [form, setForm] = useState({ name: '', price: '', sotuv_narxi: '', quantity: '', unit: 'dona' });
 
   const filtered = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
 
   const handleSave = () => {
     if (!form.name) return;
     if (editId) {
-      setItems(prev => prev.map(i => i.id === editId ? { ...i, ...form, price: +form.price, quantity: +form.quantity } : i));
+      setItems(prev => prev.map(i => i.id === editId ? { ...i, ...form, price: +form.price, sotuv_narxi: +form.sotuv_narxi, quantity: +form.quantity } : i));
       setEditId(null);
     } else {
-      setItems(prev => [...prev, { id: Date.now(), name: form.name, price: +form.price, quantity: +form.quantity, unit: form.unit }]);
+      setItems(prev => [...prev, { id: Date.now(), name: form.name, price: +form.price, sotuv_narxi: +form.sotuv_narxi, quantity: +form.quantity, unit: form.unit }]);
     }
     setShowAdd(false);
-    setForm({ name: '', price: '', quantity: '', unit: 'dona' });
+    setForm({ name: '', price: '', sotuv_narxi: '', quantity: '', unit: 'dona' });
   };
 
   const handleEdit = (item) => {
-    setForm({ name: item.name, price: String(item.price), quantity: String(item.quantity), unit: item.unit || 'dona' });
+    setForm({ name: item.name, price: String(item.price), sotuv_narxi: String(item.sotuv_narxi || ''), quantity: String(item.quantity), unit: item.unit || 'dona' });
     setEditId(item.id);
     setShowAdd(true);
   };
@@ -43,7 +43,7 @@ export default function Bars() {
           <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 22 }}>Bars</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>Manage products and inventory</p>
         </div>
-        <button className="btn btn-primary" onClick={() => { setShowAdd(true); setEditId(null); setForm({ name: '', price: '', quantity: '', unit: 'dona' }); }}>
+        <button className="btn btn-primary" onClick={() => { setShowAdd(true); setEditId(null); setForm({ name: '', price: '', sotuv_narxi: '', quantity: '', unit: 'dona' }); }}>
           <Plus size={15} /> Add Product
         </button>
       </div>
@@ -67,9 +67,19 @@ export default function Bars() {
                 <button className="btn btn-danger btn-sm" style={{ padding: '4px 8px' }} onClick={() => setItems(prev => prev.filter(i => i.id !== item.id))}><Trash2 size={11} /></button>
               </div>
             </div>
-            <div className="flex-between mt-16">
-              <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--accent-light)' }}>{item.price.toLocaleString()} so'm</span>
-              <span className="badge badge-purple">{item.quantity} {item.unit || 'dona'}</span>
+            <div className="mt-16" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div className="flex-between">
+                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Asl narxi:</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{item.price?.toLocaleString()} so'm</span>
+              </div>
+              <div className="flex-between">
+                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Sotuv narxi:</span>
+                <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--green)' }}>{item.sotuv_narxi?.toLocaleString() || 0} so'm</span>
+              </div>
+              <div className="flex-between mt-8" style={{ borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Miqdor:</span>
+                <span className="badge badge-purple">{item.quantity} {item.unit || 'dona'}</span>
+              </div>
             </div>
           </div>
         ))}
@@ -78,7 +88,7 @@ export default function Bars() {
       {/* Add/Edit Modal */}
       {showAdd && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={() => setShowAdd(false)}>
-          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: 28, width: 400 }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: 28, width: 460, maxWidth: '95%' }} onClick={e => e.stopPropagation()}>
             <div className="flex-between mb-20">
               <h3>{editId ? 'Edit Product' : 'Add Product'}</h3>
               <button onClick={() => setShowAdd(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={18} /></button>
@@ -88,9 +98,15 @@ export default function Bars() {
                 <label className="form-label">Name</label>
                 <input className="form-input" placeholder="Product name" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
               </div>
-              <div className="form-group">
-                <label className="form-label">Narxi (so'm)</label>
-                <input className="form-input" type="number" step="100" min="0" placeholder="5000" value={form.price} onChange={e => setForm(p => ({ ...p, price: e.target.value }))} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div className="form-group" style={{ minWidth: 0 }}>
+                  <label className="form-label">Asl narxi (so'm)</label>
+                  <input className="form-input" type="number" step="100" min="0" placeholder="5000" value={form.price} onChange={e => setForm(p => ({ ...p, price: e.target.value }))} style={{ minWidth: 0, width: '100%' }} />
+                </div>
+                <div className="form-group" style={{ minWidth: 0 }}>
+                  <label className="form-label">Sotuv narxi (so'm)</label>
+                  <input className="form-input" type="number" step="100" min="0" placeholder="7000" value={form.sotuv_narxi} onChange={e => setForm(p => ({ ...p, sotuv_narxi: e.target.value }))} style={{ minWidth: 0, width: '100%' }} />
+                </div>
               </div>
               <div className="form-group">
                 <label className="form-label">O'lchov birligi</label>
