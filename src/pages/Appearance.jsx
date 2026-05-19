@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTheme } from '../context/ThemeContext';
 
 const themes = [
   { id: 'purple', name: 'Cosmic Purple', primary: '#7c3aed', secondary: '#06b6d4' },
@@ -13,13 +14,18 @@ const fonts = ['Inter', 'Roboto', 'Outfit', 'Poppins', 'DM Sans'];
 const borderRadii = [{ label: 'Sharp', value: '4px' }, { label: 'Normal', value: '14px' }, { label: 'Rounded', value: '20px' }];
 
 export default function Appearance() {
+  const { isDark, toggleTheme } = useTheme();
   const [activeTheme, setActiveTheme] = useState('purple');
   const [activeFont, setActiveFont] = useState('Inter');
   const [activeRadius, setActiveRadius] = useState('Normal');
   const [sidebarCompact, setSidebarCompact] = useState(false);
   const [animationsOn, setAnimationsOn] = useState(true);
   const [glowEffects, setGlowEffects] = useState(true);
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved) return saved === 'dark';
+    return !document.documentElement.classList.contains('light-mode');
+  });
 
   const applyTheme = (theme) => {
     setActiveTheme(theme.id);
@@ -34,8 +40,19 @@ export default function Appearance() {
     document.documentElement.style.setProperty('--radius', r.value);
   };
 
+  const handleToggleDarkMode = (val) => {
+    setDarkMode(val);
+    if (val) {
+      document.documentElement.classList.remove('light-mode');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.add('light-mode');
+      localStorage.setItem('theme', 'light');
+    }
+  };
+
   const toggles = [
-    { label: 'Dark Mode', sub: 'Switch between dark and light interface', value: darkMode, set: setDarkMode },
+    { label: 'Dark Mode', sub: 'Switch between dark and light interface', value: darkMode, set: handleToggleDarkMode },
     { label: 'Compact Sidebar', sub: 'Reduce sidebar width for more content space', value: sidebarCompact, set: setSidebarCompact },
     { label: 'Animations', sub: 'Enable smooth page and element transitions', value: animationsOn, set: setAnimationsOn },
     { label: 'Glow Effects', sub: 'Add neon glow to active elements and cards', value: glowEffects, set: setGlowEffects },

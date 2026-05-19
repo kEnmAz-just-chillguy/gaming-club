@@ -1,237 +1,258 @@
 import { useState, useEffect } from 'react';
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell
-} from 'recharts';
-import { TrendingUp, TrendingDown, Users, Monitor, DollarSign, Coffee, Activity, Clock } from 'lucide-react';
-import { revenueData, weeklyData, topGames, rooms as initialRooms, employees } from '../data/mockData';
+import { useNavigate } from 'react-router-dom';
+import { rooms as initialRooms } from '../data/mockData';
+import { useLocalStorage } from '../hooks/useLocalStorage';
+import { Monitor, Clock, Gamepad2, DollarSign, Wrench, Search } from 'lucide-react';
+import { formatSomRaw } from '../utils/currency';
 
-const StatCard = ({ icon: Icon, label, value, change, up, color, bg }) => (
-  <div className="stat-card fade-in">
-    <div className="stat-icon" style={{ background: bg, color }}>
-      <Icon size={22} />
-    </div>
-    <div className="stat-info">
-      <div className="stat-label">{label}</div>
-      <div className="stat-value">{value}</div>
-      <div className={`stat-change ${up ? 'up' : 'down'}`}>
-        {up ? <TrendingUp size={11} style={{display:'inline',marginRight:3}} /> : <TrendingDown size={11} style={{display:'inline',marginRight:3}} />}
-        {change} this month
-      </div>
-    </div>
-  </div>
-);
-
-const CustomTooltip = ({ active, payload, label }) => {
-  if (active && payload && payload.length) {
-    return (
-      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px' }}>
-        <p style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 6 }}>{label}</p>
-        {payload.map((p, i) => (
-          <p key={i} style={{ color: p.color, fontSize: 13, fontWeight: 600 }}>
-            {p.name}: ${p.value?.toLocaleString() ?? p.value}
-          </p>
-        ))}
-      </div>
-    );
-  }
-  return null;
+const statusConfig = {
+  occupied:    { label: 'Occupied',    color: '#ef4444', bg: 'rgba(239,68,68,0.12)',    dot: '#ef4444',  glow: 'rgba(239,68,68,0.25)' },
+  available:   { label: 'Available',   color: '#10b981', bg: 'rgba(16,185,129,0.12)',   dot: '#10b981',  glow: 'rgba(16,185,129,0.2)' },
+  maintenance: { label: 'Maintenance', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)',   dot: '#f59e0b',  glow: 'rgba(245,158,11,0.2)' },
 };
 
-export default function Dashboard() {
-  const [chartTab, setChartTab] = useState('monthly');
-  const data = chartTab === 'monthly' ? revenueData : weeklyData;
+const typeIcons = { 'VIP Suite': '👑', 'Premium': '⭐', 'Standard': '🖥️' };
 
-  const [rooms, setRooms] = useState(() => {
-    const saved = localStorage.getItem('gaming_club_rooms');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Failed to parse rooms from localStorage', e);
-      }
+// Universal Room Timer using absolute timestamps from room object
+function RoomTimer({ room }) {
+  const calcTime = () => {
+    if (!room || room.status !== 'occupied') return { secs: 0, isCountdown: false };
+    const now = Date.now();
+    if (room.endTime) {
+      const rem = Math.floor((room.endTime - now) / 1000);
+      return { secs: rem > 0 ? rem : 0, isCountdown: true };
     }
-    return initialRooms;
+    if (room.startTime) {
+      return { secs: Math.floor((now - room.startTime) / 1000), isCountdown: false };
+    }
+    // fallback for legacy mock data
+    if (room.since) {
+      const [h, m] = room.since.split(':').map(Number);
+      const start = new Date();
+      start.setHours(h, m, 0, 0);
+      const diff = Math.floor((now - start.getTime()) / 1000);
+      return { secs: diff > 0 ? diff : 0, isCountdown: false };
+    }
+    return { secs: 0, isCountdown: false };
+  };
+
+  const [time, setTime] = useState(calcTime);
+  
+  useEffect(() => {
+    const ref = setInterval(() => setTime(calcTime()), 1000);
+    return () => clearInterval(ref);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room.status, room.startTime, room.endTime]);
+
+  const { secs, isCountdown } = time;
+  const h = String(Math.floor(secs / 3600)).padStart(2, '0');
+  const m = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
+  const s = String(secs % 60).padStart(2, '0');
+  
+  let color = '#10b981';
+  if (isCountdown) {
+    if (secs <= 0) color = '#6b7280'; // time's up
+    else if (secs <= 120) color = '#ef4444'; // less than 2 min
+    else if (secs <= 600) color = '#f59e0b'; // less than 10 min
+  }
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <Clock size={13} color={color} />
+      <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 13, fontWeight: 700, color, letterSpacing: 1 }}>
+        {h}:{m}:{s}
+      </span>
+    </div>
+  );
+}
+
+export default function Dashboard() {
+  const navigate = useNavigate();
+  const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const [rooms] = useLocalStorage('gc_rooms_v2', initialRooms);
+
+  const counts = {
+    all:         rooms.length,
+    occupied:    rooms.filter(r => r.status === 'occupied').length,
+    available:   rooms.filter(r => r.status === 'available').length,
+    maintenance: rooms.filter(r => r.status === 'maintenance').length,
+  };
+
+  const totalRevenue = rooms.reduce((a, r) => a + r.revenue, 0);
+
+  const filtered = rooms.filter(r => {
+    const matchStatus = filter === 'all' || r.status === filter;
+    const matchSearch = search === '' ||
+      r.number.toLowerCase().includes(search.toLowerCase()) ||
+      (r.player && r.player.toLowerCase().includes(search.toLowerCase())) ||
+      (r.game && r.game.toLowerCase().includes(search.toLowerCase()));
+    return matchStatus && matchSearch;
   });
-
-  const occupied = rooms.filter(r => r.status === 'occupied').length;
-  const available = rooms.filter(r => r.status === 'available').length;
-  const activeStaff = employees.filter(e => e.status === 'active').length;
-  const todayRevenue = rooms.filter(r => r.revenue > 0).reduce((a, r) => a + r.revenue, 0);
-
-  const recentActivity = [
-    { icon: '🎮', text: 'Room A-01 session ended — Alex M.', time: '2 min ago', color: 'var(--accent)' },
-    { icon: '☕', text: 'Bar purchase — Energy Drink x2', time: '8 min ago', color: 'var(--cyan)' },
-    { icon: '🔧', text: 'Room B-03 set to maintenance', time: '25 min ago', color: 'var(--orange)' },
-    { icon: '👤', text: 'New session — Room D-02 (Nina S.)', time: '34 min ago', color: 'var(--green)' },
-    { icon: '💰', text: 'Payment received — $60.00', time: '1h ago', color: 'var(--pink)' },
-  ];
 
   return (
     <div className="page-content fade-in">
-      {/* Hero Banner */}
-      <div className="hero-banner mb-20">
-        <h3>Welcome back, Admin! 👋</h3>
-        <p>Your gaming club is running smoothly. {occupied} of {rooms.length} rooms are currently occupied.</p>
-        <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
-          <button className="btn btn-primary btn-sm">View Rooms</button>
-          <button className="btn btn-secondary btn-sm" style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', borderColor: 'rgba(255,255,255,0.2)' }}>Export Report</button>
+
+      {/* Header */}
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 22, fontWeight: 800 }}>Live Dashboard</h1>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 3 }}>
+          Live overview of all {rooms.length} gaming rooms
+        </p>
+      </div>
+
+      {/* Summary Strip */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
+        {[
+          { icon: Gamepad2, label: 'Occupied',    value: counts.occupied,    color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
+          { icon: Monitor,  label: 'Available',   value: counts.available,   color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
+          { icon: Wrench,   label: 'Maintenance', value: counts.maintenance, color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+          { icon: DollarSign, label: 'Revenue Today', value: formatSomRaw(totalRevenue), color: '#7c3aed', bg: 'rgba(124,58,237,0.12)' },
+        ].map((s, i) => (
+          <div key={i} className="stat-card" style={{ padding: '18px 20px' }}>
+            <div className="stat-icon" style={{ background: s.bg, color: s.color, width: 44, height: 44, borderRadius: 12, fontSize: 20 }}>
+              <s.icon size={20} />
+            </div>
+            <div className="stat-info">
+              <div className="stat-label">{s.label}</div>
+              <div className="stat-value" style={{ fontSize: 24 }}>{s.value}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filters + Search */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+        {Object.entries(counts).map(([key, count]) => (
+          <button
+            key={key}
+            onClick={() => setFilter(key)}
+            className={`btn ${filter === key ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+            style={{ textTransform: 'capitalize', minWidth: 100 }}
+          >
+            {key === 'all' ? '🏠' : key === 'occupied' ? '🎮' : key === 'available' ? '✅' : '🔧'}{' '}
+            {key} <span style={{ opacity: 0.7, marginLeft: 4 }}>({count})</span>
+          </button>
+        ))}
+
+        <div style={{
+          marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8,
+          background: 'var(--bg-card)', border: '1px solid var(--border)',
+          borderRadius: 8, padding: '7px 14px', minWidth: 200,
+          transition: 'all 0.2s',
+        }}>
+          <Search size={13} color="var(--text-muted)" />
+          <input
+            placeholder="Room, player, game..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{
+              background: 'none', border: 'none', outline: 'none',
+              color: 'var(--text-primary)', fontSize: 13,
+              fontFamily: 'inherit', width: '100%',
+            }}
+          />
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="stats-grid mb-20">
-        <StatCard icon={Monitor} label="Occupied Rooms" value={occupied} change="+3" up={true} color="#7c3aed" bg="rgba(124,58,237,0.15)" />
-        <StatCard icon={Activity} label="Available Rooms" value={available} change="-3" up={false} color="#06b6d4" bg="rgba(6,182,212,0.15)" />
-        <StatCard icon={DollarSign} label="Today Revenue" value={`$${todayRevenue}`} change="+12%" up={true} color="#10b981" bg="rgba(16,185,129,0.15)" />
-        <StatCard icon={Users} label="Active Staff" value={activeStaff} change="+1" up={true} color="#f59e0b" bg="rgba(245,158,11,0.15)" />
-        <StatCard icon={Coffee} label="Bar Sales Today" value="$124" change="+18%" up={true} color="#ec4899" bg="rgba(236,72,153,0.15)" />
-        <StatCard icon={Clock} label="Avg Session" value="2.4h" change="+0.3h" up={true} color="#8b5cf6" bg="rgba(139,92,246,0.15)" />
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid-7-3 mb-20">
-        {/* Revenue Chart */}
-        <div className="card">
-          <div className="card-header">
-            <div>
-              <div className="card-title">Revenue Analytics</div>
-              <div className="card-subtitle">Revenue vs Expenses overview</div>
-            </div>
-            <div className="tabs" style={{ width: 'auto' }}>
-              <button className={`tab ${chartTab === 'monthly' ? 'active' : ''}`} onClick={() => setChartTab('monthly')}>Monthly</button>
-              <button className={`tab ${chartTab === 'weekly' ? 'active' : ''}`} onClick={() => setChartTab('weekly')}>Weekly</button>
-            </div>
-          </div>
-          <div className="chart-container">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#7c3aed" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="exp" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey={chartTab === 'monthly' ? 'month' : 'day'} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#7c3aed" strokeWidth={2} fill="url(#rev)" />
-                <Area type="monotone" dataKey="expenses" name="Expenses" stroke="#ef4444" strokeWidth={2} fill="url(#exp)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+      {/* Room Cards Grid */}
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
+          <div style={{ fontSize: 15 }}>No rooms match your filter</div>
         </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 18 }}>
+          {filtered.map(room => {
+            const cfg = statusConfig[room.status];
+            return (
+              <div
+                key={room.id}
+                onClick={() => navigate(`/room/${room.id}`)}
+                style={{
+                  background: 'var(--bg-card)',
+                  border: `1px solid ${cfg.color}40`,
+                  borderRadius: 16,
+                  padding: 20,
+                  transition: 'all 0.25s',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = 'translateY(-3px)';
+                  e.currentTarget.style.boxShadow = `0 8px 28px ${cfg.glow}`;
+                  e.currentTarget.style.borderColor = cfg.color + '80';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.borderColor = cfg.color + '40';
+                }}
+              >
+                {/* Glow orb top-right */}
+                <div style={{
+                  position: 'absolute', top: -30, right: -30,
+                  width: 100, height: 100, borderRadius: '50%',
+                  background: cfg.glow, pointerEvents: 'none',
+                }} />
 
-        {/* Top Games Pie */}
-        <div className="card">
-          <div className="card-header">
-            <div>
-              <div className="card-title">Top Games</div>
-              <div className="card-subtitle">By session count</div>
-            </div>
-          </div>
-          <div style={{ height: 160 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={topGames} cx="50%" cy="50%" innerRadius={45} outerRadius={70} dataKey="sessions" paddingAngle={3}>
-                  {topGames.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                </Pie>
-                <Tooltip formatter={(v, n) => [v + ' sessions', n]} contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
-            {topGames.map((g, i) => (
-              <div key={i} className="flex-between">
-                <div className="flex-gap" style={{ gap: 8 }}>
-                  <div className="color-dot" style={{ background: g.color }} />
-                  <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{g.name}</span>
-                </div>
-                <span style={{ fontSize: 12, fontWeight: 600, color: g.color }}>{g.percent}%</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom Row */}
-      <div className="grid-2">
-        {/* Recent Activity */}
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">Recent Activity</div>
-            <button className="btn btn-secondary btn-sm">View All</button>
-          </div>
-          {recentActivity.map((item, i) => (
-            <div key={i} className="notif-item">
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
-                {item.icon}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div className="notif-text">{item.text}</div>
-                <div className="notif-time">{item.time}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Room Status Summary */}
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">Room Status</div>
-            <span className="badge badge-purple">{rooms.length} Total</span>
-          </div>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-            {[
-              { label: 'Occupied', count: occupied, color: 'var(--red)', bg: 'rgba(239,68,68,0.1)' },
-              { label: 'Available', count: available, color: 'var(--green)', bg: 'rgba(16,185,129,0.1)' },
-              { label: 'Maintenance', count: rooms.filter(r => r.status === 'maintenance').length, color: 'var(--orange)', bg: 'rgba(245,158,11,0.1)' },
-            ].map((s, i) => (
-              <div key={i} style={{ flex: 1, background: s.bg, borderRadius: 10, padding: '14px 16px', textAlign: 'center' }}>
-                <div style={{ fontSize: 24, fontWeight: 800, color: s.color, fontFamily: 'Orbitron, sans-serif' }}>{s.count}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{s.label}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {rooms.filter(r => r.status === 'occupied').slice(0, 4).map(r => (
-              <div key={r.id} style={{ background: 'rgba(255,255,255,0.02)', padding: 16, borderRadius: 12, border: '1px solid var(--border)' }}>
-                <div className="flex-between mb-10">
-                  <div className="flex-gap">
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--red)' }} />
-                    <span style={{ fontSize: 14, fontWeight: 600, fontFamily: 'Orbitron, sans-serif' }}>Room {r.number}</span>
-                  </div>
-                  <div className="flex-gap" style={{ gap: 6 }}>
-                    <Monitor size={12} color="var(--text-muted)" />
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{r.equipment || (r.pcs ? `${r.pcs} PCs` : '')}</span>
-                  </div>
-                </div>
-                
-                <div style={{ padding: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: 8 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Current Session</div>
-                    <div style={{ fontSize: 12, color: 'var(--accent-light)' }}>⏱️ since {r.since}</div>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>👤 {r.player}</div>
-                      <div style={{ fontSize: 12, color: 'var(--accent-light)', marginTop: 2 }}>🎮 {r.game}</div>
+                {/* Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+                  <div>
+                    <div style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>
+                      {room.number}
                     </div>
-                    {r.pricePerHour && (
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--green)' }}>${r.pricePerHour}/h</div>
-                    )}
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>
+                      {typeIcons[room.type]} {room.type}
+                    </div>
+                  </div>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    background: cfg.bg, borderRadius: 999,
+                    padding: '4px 10px', fontSize: 11, fontWeight: 700, color: cfg.color,
+                  }}>
+                    <div style={{ width: 7, height: 7, borderRadius: '50%', background: cfg.dot,
+                      ...(room.status === 'occupied' ? { boxShadow: `0 0 6px ${cfg.dot}` } : {}) }} />
+                    {cfg.label}
                   </div>
                 </div>
+
+                {/* Divider */}
+                <div style={{ height: 1, background: 'var(--border)', marginBottom: 14 }} />
+
+                {/* Session info or idle */}
+                {room.status === 'occupied' ? (
+                  <div className="flex-between">
+                    <RoomTimer room={room} />
+                  </div>
+                ) : room.status === 'available' ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#10b981', fontSize: 13, fontWeight: 600 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981' }} />
+                    Ready for a session
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#f59e0b', fontSize: 13, fontWeight: 600 }}>
+                    <Wrench size={13} />
+                    Under maintenance
+                  </div>
+                )}
+
+                {/* Footer */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Gamepad2 size={12} color="var(--text-muted)" />
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>{room.console}</span>
+                  </div>
+                  {room.status === 'occupied' && room.revenue > 0 && (
+                    <span style={{ fontSize: 13, fontWeight: 800, color: '#10b981' }}>{formatSomRaw(room.revenue)}</span>
+                  )}
+                </div>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
-      </div>
+      )}
     </div>
   );
 }

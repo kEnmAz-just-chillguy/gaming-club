@@ -28,6 +28,22 @@
   --transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
 }
 
+.light-mode {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f1f5f9;
+  --sidebar-bg: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #627d98;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-accent: rgba(124, 58, 237, 0.35);
+  --shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  --accent-glow: rgba(124, 58, 237, 0.15);
+}
+
+
 html { font-size: 16px; }
 body {
   font-family: 'Inter', sans-serif;
@@ -35,6 +51,7 @@ body {
   color: var(--text-primary);
   min-height: 100vh;
   overflow-x: hidden;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
