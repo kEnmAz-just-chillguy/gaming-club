@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '../config/supabase';
 import { Save, User, CheckCircle, Eye, EyeOff, ChevronDown, Edit2 } from 'lucide-react';
 
 const ROLES = ['Super Admin', 'Admin', 'Manager', 'Cashier', 'Operator'];
@@ -12,26 +13,48 @@ export default function Settings() {
     password: 'admin1234',
   };
 
-  const [profile, setProfile] = useState(() => {
-    try {
-      const saved = localStorage.getItem('user_profile');
-      const parsed = saved ? JSON.parse(saved) : null;
-      return (parsed && parsed.name) ? parsed : defaults;
-    } catch {
-      return defaults;
-    }
-  });
+  const [profile, setProfile] = useState(defaults);
+  const [profileId, setProfileId] = useState(null);
 
   const [saved, setSaved] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  useEffect(() => {
-    localStorage.setItem('user_profile', JSON.stringify(profile));
-  }, [profile]);
+  const fetchProfile = async () => {
+    const { data, error } = await supabase
+      .from('settings')
+      .select('*')
+      .limit(1)
+      .maybeSingle();
 
-  const handleSave = () => {
-    localStorage.setItem('user_profile', JSON.stringify(profile));
+    if (!error && data) {
+      setProfile(data);
+      setProfileId(data.id);
+    }
+  };
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const handleSave = async () => {
+    const profileData = {
+      name: profile.name,
+      role: profile.role,
+      email: profile.email,
+      phone: profile.phone,
+      password: profile.password
+    };
+
+    if (profileId) {
+      await supabase.from('settings').update(profileData).eq('id', profileId);
+    } else {
+      const { data, error } = await supabase.from('settings').insert([profileData]).select();
+      if (!error && data && data.length > 0) {
+        setProfileId(data[0].id);
+      }
+    }
+
     setSaved(true);
     setIsEditing(false);
     setTimeout(() => setSaved(false), 2500);

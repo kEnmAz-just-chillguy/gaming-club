@@ -9,8 +9,8 @@ export default function Employees() {
   });
 
   useEffect(() => {
-    localStorage.setItem('employees', JSON.stringify(employees));
-  }, [employees]);
+    fetchEmployees();
+  }, []);
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -21,14 +21,28 @@ export default function Employees() {
     e.role.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name || !form.role) return;
+    
+    const employeeData = {
+      name: form.name,
+      role: form.role,
+      telephone: form.telephone,
+      email: form.email,
+      password: form.password,
+      avatar: form.avatar || form.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
+      color: form.color || '#7c3aed',
+      joined: form.joined || new Date().toISOString().slice(0, 10)
+    };
+
     if (editId) {
-      setEmployees(prev => prev.map(e => e.id === editId ? { ...e, ...form } : e));
+      await supabase.from('employees').update(employeeData).eq('id', editId);
       setEditId(null);
     } else {
-      setEmployees(prev => [...prev, { id: Date.now(), ...form, joined: new Date().toISOString().slice(0, 10), avatar: form.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) }]);
+      await supabase.from('employees').insert([employeeData]);
     }
+    
+    await fetchEmployees();
     setShowAdd(false);
     setForm({ name: '', role: '', telephone: '', email: '', password: '', avatar: '', color: '#7c3aed' });
   };
@@ -39,7 +53,10 @@ export default function Employees() {
     setShowAdd(true);
   };
 
-  const handleDelete = (id) => setEmployees(prev => prev.filter(e => e.id !== id));
+  const handleDelete = async (id) => {
+    await supabase.from('employees').delete().eq('id', id);
+    await fetchEmployees();
+  };
 
   return (
     <div className="page-content fade-in">

@@ -8,13 +8,21 @@ import {
   ArrowLeft, Monitor, Clock, Gamepad2,
   Wrench, Coffee, CheckCircle, XCircle, AlertTriangle, ShoppingCart, X, Eye
 } from 'lucide-react';
+import { supabase } from '../config/supabase';
 
 const statusCfg = {
-  occupied:    { label: 'Occupied',    color: '#ef4444', bg: 'rgba(239,68,68,0.12)',  dot: '#ef4444' },
-  available:   { label: 'Available',   color: '#10b981', bg: 'rgba(16,185,129,0.12)', dot: '#10b981' },
+  occupied: { label: 'Occupied', color: '#ef4444', bg: 'rgba(239,68,68,0.12)', dot: '#ef4444' },
+  available: { label: 'Available', color: '#10b981', bg: 'rgba(16,185,129,0.12)', dot: '#10b981' },
   maintenance: { label: 'Maintenance', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', dot: '#f59e0b' },
 };
-const typeIcons = { 'VIP Suite': '👑', 'Premium': '⭐', 'Standard': '🖥️' };
+const typeIcons = { 
+  'VIP Suite': '👑', 
+  'VIP': '👑', 
+  'Premium': '⭐', 
+  'Standard': '🖥️', 
+  'Obshiy': '👥', 
+  'PlayStation': '🎮' 
+};
 
 const SectionTitle = ({ icon: Icon, label, color = 'var(--accent-light)' }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
@@ -147,7 +155,7 @@ export default function RoomDetail() {
   };
 
   const getTimerColor = (secs) => {
-    if (secs <= 0)   return '#6b7280';
+    if (secs <= 0) return '#6b7280';
     if (secs <= 120) return '#ef4444';
     if (secs <= 600) return '#f59e0b';
     return '#10b981';
@@ -172,11 +180,11 @@ export default function RoomDetail() {
         isVipRef.current = false;
       }
     };
-    
+
     tick();
     timerRef.current = setInterval(tick, 1000);
     return () => clearInterval(timerRef.current);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomState?.status, roomState?.startTime, roomState?.endTime, roomState?.sessionMode]);
 
   // ── Must be called before any early returns (Rules of Hooks) ──────────────
@@ -468,7 +476,7 @@ export default function RoomDetail() {
             Room {room.number}
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 3 }}>
-            {typeIcons[room.type]} {room.type} · {room.console}
+            {typeIcons[room.type] || '🎮'} {room.type} · {room.console}
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: cfg.bg, borderRadius: 999, padding: '6px 14px', fontSize: 13, fontWeight: 700, color: cfg.color }}>
@@ -530,8 +538,8 @@ export default function RoomDetail() {
                     {timesUp
                       ? <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 18, fontWeight: 800, color: '#6b7280' }}>⏰ TIME&apos;S UP</span>
                       : <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 28, fontWeight: 800, color: timerColor, letterSpacing: 3, transition: 'color 0.5s' }}>
-                          {formatCountdown(displaySecs)}
-                        </span>
+                        {formatCountdown(displaySecs)}
+                      </span>
                     }
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.8 }}>

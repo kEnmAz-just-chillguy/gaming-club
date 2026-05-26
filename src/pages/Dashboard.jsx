@@ -11,7 +11,14 @@ const statusConfig = {
   maintenance: { label: 'Maintenance', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)',   dot: '#f59e0b',  glow: 'rgba(245,158,11,0.2)' },
 };
 
-const typeIcons = { 'VIP Suite': '👑', 'Premium': '⭐', 'Standard': '🖥️' };
+const typeIcons = { 
+  'VIP Suite': '👑', 
+  'VIP': '👑', 
+  'Premium': '⭐', 
+  'Standard': '🖥️', 
+  'Obshiy': '👥', 
+  'PlayStation': '🎮' 
+};
 
 const getSessionTimes = (startTimeStr, endTimeStr) => {
   const now = Date.now();
@@ -112,6 +119,15 @@ export default function Dashboard() {
     return matchStatus && matchSearch;
   });
 
+  const sortedFiltered = [...filtered].sort((a, b) => {
+    if (a.status === 'occupied' && b.status !== 'occupied') return -1;
+    if (a.status !== 'occupied' && b.status === 'occupied') return 1;
+    if (a.status === 'occupied' && b.status === 'occupied') {
+      return (b.startTime || 0) - (a.startTime || 0);
+    }
+    return b.id - a.id;
+  });
+
   return (
     <div className="page-content fade-in">
 
@@ -210,7 +226,7 @@ export default function Dashboard() {
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 18 }}>
-          {filtered.map(room => {
+          {sortedFiltered.map(room => {
             const cfg = statusConfig[room.status];
             return (
               <div
@@ -251,7 +267,7 @@ export default function Dashboard() {
                       {room.number}
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>
-                      {typeIcons[room.type]} {room.type}
+                      {typeIcons[room.type] || '🎮'} {room.type}
                     </div>
                   </div>
                   <div style={{

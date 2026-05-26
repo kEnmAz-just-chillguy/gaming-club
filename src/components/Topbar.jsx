@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Search, Bell, Sun, Moon, LogOut, RefreshCw, Settings } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 const titles = {
   '/': { title: 'Dashboard', sub: 'Live overview of every gaming room in the club.' },
@@ -20,24 +21,7 @@ export default function Topbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  
-  const [dark, setDark] = useState(() => {
-    const saved = localStorage.getItem('theme');
-    if (saved) return saved === 'dark';
-    return !document.documentElement.classList.contains('light-mode');
-  });
-
-  const toggleTheme = () => {
-    const isDark = !dark;
-    setDark(isDark);
-    if (isDark) {
-      document.documentElement.classList.remove('light-mode');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.add('light-mode');
-      localStorage.setItem('theme', 'light');
-    }
-  };
+  const { isDark, toggleTheme } = useTheme();
 
   const handleLogout = async () => {
     await logout();
@@ -64,7 +48,7 @@ export default function Topbar() {
             <RefreshCw size={15} />
           </button>
           <button className="topbar-btn" title="Toggle theme" onClick={toggleTheme}>
-            {dark ? <Sun size={15} /> : <Moon size={15} />}
+            {isDark ? <Sun size={15} /> : <Moon size={15} />}
           </button>
           <button className="topbar-btn" title="Notifications">
             <Bell size={15} />
