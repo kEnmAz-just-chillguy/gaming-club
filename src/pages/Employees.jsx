@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
-import { employees as initialEmployees } from '../data/mockData';
+
 import { Plus, X, Search, Edit2, Trash2 } from 'lucide-react';
 
 export default function Employees() {
   const [employees, setEmployees] = useState(() => {
-    const saved = localStorage.getItem('employees_v1'); // Changing key to avoid conflicts with previous versions if any, actually wait, just 'employees' is fine.
     const raw = localStorage.getItem('employees');
-    return raw ? JSON.parse(raw) : initialEmployees;
+    return raw ? JSON.parse(raw) : [];
   });
 
   useEffect(() => {

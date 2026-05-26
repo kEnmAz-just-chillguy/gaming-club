@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { rooms as initialRooms } from '../data/mockData';
+import { useSupabaseRooms } from '../hooks/useSupabaseRooms';
 import { Monitor, Users, Gamepad2, Clock, Plus, X, Check, Trash2, Edit } from 'lucide-react';
-import { useLocalStorage } from '../hooks/useLocalStorage';
 import { formatSomRaw } from '../utils/currency';
+import { SkeletonRoomGrid } from '../components/Skeleton';
 
 const statusConfig = {
   occupied: { label: 'Occupied', color: 'var(--red)', bg: 'rgba(239,68,68,0.12)', dot: '#ef4444' },
@@ -11,7 +11,7 @@ const statusConfig = {
 };
 
 export default function Rooms() {
-  const [rooms, setRooms] = useLocalStorage('gc_rooms_v2', initialRooms);
+  const { rooms, loading, addRoom, updateRoom, deleteRoom } = useSupabaseRooms();
   const [filter, setFilter] = useState('all');
   const [selected, setSelected] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -19,40 +19,57 @@ export default function Rooms() {
   const [roomToDelete, setRoomToDelete] = useState(null);
   const [editRoom, setEditRoom] = useState(null);
 
-  useEffect(() => {
-    window.dispatchEvent(new Event('rooms_updated'));
-  }, [rooms]);
-
   const filtered = filter === 'all' ? rooms : rooms.filter(r => r.status === filter);
 
-  const handleStatusChange = (id, newStatus) => {
-    setRooms(prev => prev.map(r => r.id === id ? { ...r, status: newStatus, player: null, game: null, since: null, revenue: 0 } : r));
-    setSelected(null);
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      await updateRoom(id, { status: newStatus, startTime: null, endTime: null, revenue: 0 });
+      setSelected(null);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!newRoom.number) return;
-    setRooms(prev => [...prev, { id: Date.now(), ...newRoom, status: 'available', game: null, player: null, since: null, revenue: 0 }]);
-    setShowAdd(false);
-    setNewRoom({ number: '', type: 'Standard', equipment: '', pricePerHour: '' });
+    try {
+      await addRoom({
+        ...newRoom,
+        status: 'available',
+        startTime: null,
+        endTime: null,
+        revenue: 0
+      });
+      setShowAdd(false);
+      setNewRoom({ number: '', type: 'Standard', equipment: '', pricePerHour: '' });
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!editRoom.number) return;
-    setRooms(prev => prev.map(r => r.id === editRoom.id ? { ...r, ...editRoom } : r));
-    setEditRoom(null);
+    try {
+      await updateRoom(editRoom.id, editRoom);
+      setEditRoom(null);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleDelete = (id) => {
     setRoomToDelete(id);
-    setNewRoom({ number: '', type: 'Standard', console: 'PS3' });
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (roomToDelete) {
-      setRooms(prev => prev.filter(r => r.id !== roomToDelete));
-      setSelected(null);
-      setRoomToDelete(null);
+      try {
+        await deleteRoom(roomToDelete);
+        setSelected(null);
+        setRoomToDelete(null);
+      } catch (e) {
+        console.error(e);
+      }
     }
   };
 
@@ -72,8 +89,17 @@ export default function Rooms() {
 
 
       {/* Room Grid */}
-      <div className="room-grid">
-        {filtered.map(room => {
+      {loading && rooms.length === 0 ? (
+        <SkeletonRoomGrid count={6} />
+      ) : filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🏠</div>
+          <div style={{ fontSize: 15 }}>No rooms found</div>
+        </div>
+      ) : null}
+      {!loading || rooms.length > 0 ? (
+        <div className="room-grid">
+          {filtered.map(room => {
           const cfg = statusConfig[room.status];
           return (
             <div key={room.id} className={`room-card ${room.status}`} onClick={() => setSelected(room)}>
@@ -107,20 +133,18 @@ export default function Rooms() {
                   <Gamepad2 size={12} color="var(--text-muted)" />
                   <span className="room-pcs">{room.console}</span>
                 </div>
-                {room.since && (
+                {room.startTime && (
                   <div className="flex-gap" style={{ gap: 6 }}>
                     <Clock size={12} color="var(--text-muted)" />
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{room.since}</span>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{room.startTime}</span>
                   </div>
-                )}
-                {room.status === 'occupied' && room.revenue > 0 && (
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--green)' }}>{formatSomRaw(room.revenue)}</span>
                 )}
               </div>
             </div>
           );
         })}
-      </div>
+        </div>
+      ) : null}
 
       {/* Room Detail Modal */}
       {selected && (
@@ -131,7 +155,7 @@ export default function Rooms() {
               <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={18} /></button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-              {[['Type', selected.type], ['Equipment', selected.equipment || (selected.pcs ? `${selected.pcs} PCs` : '')], ['Price/Hour', selected.pricePerHour ? `$${selected.pricePerHour}` : '—'], ['Status', selected.status], ['Game', selected.game || '—'], ['Player', selected.player || '—'], ['Since', selected.since || '—'], ['Revenue', selected.revenue ? `$${selected.revenue}` : '—']].map(([k, v]) => (
+              {[['Type', selected.type], ['Equipment', selected.equipment || (selected.pcs ? `${selected.pcs} PCs` : '')], ['Price/Hour', selected.pricePerHour ? `$${selected.pricePerHour}` : '—'], ['Status', selected.status], ['Start Time', selected.startTime || '—'], ['End Time', selected.endTime || '—'], ['Revenue', selected.revenue ? `$${selected.revenue}` : '—']].map(([k, v]) => (
                 <div key={k} className="flex-between">
                   <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{k}</span>
                   <span style={{ fontSize: 13, fontWeight: 600 }}>{v}</span>

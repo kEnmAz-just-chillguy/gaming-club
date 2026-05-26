@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { spendings as initialSpendings, employees } from '../data/mockData';
+
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Plus, X, Trash2, Wallet, AlertTriangle, TrendingUp, User } from 'lucide-react';
 
