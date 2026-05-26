@@ -3,8 +3,9 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend
 } from 'recharts';
-import { revenueData, weeklyData, topGames, rooms } from '../data/mockData';
+import { useSupabaseRooms } from '../hooks/useSupabaseRooms';
 import { TrendingUp, TrendingDown } from 'lucide-react';
+import { SkeletonStatRow } from '../components/Skeleton';
 
 const TT = ({ active, payload, label }) => active && payload?.length ? (
   <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px' }}>
@@ -15,17 +16,22 @@ const TT = ({ active, payload, label }) => active && payload?.length ? (
 
 export default function Statistics() {
   const [period, setPeriod] = useState('yearly');
+  const { rooms, loading } = useSupabaseRooms();
 
-  const totalRevenue = revenueData.reduce((a, d) => a + d.revenue, 0);
-  const totalExpenses = revenueData.reduce((a, d) => a + d.expenses, 0);
-  const totalSessions = revenueData.reduce((a, d) => a + d.sessions, 0);
-  const profit = totalRevenue - totalExpenses;
+  const revenueData = [];
+  const weeklyData = [];
+  const topGames = [];
+
+  const totalRevenue = 0;
+  const totalExpenses = 0;
+  const totalSessions = 0;
+  const profit = 0;
 
   const kpis = [
-    { label: 'Total Revenue', value: `$${totalRevenue.toLocaleString()}`, change: '+22%', up: true, color: '#7c3aed', bg: 'rgba(124,58,237,0.12)' },
-    { label: 'Total Expenses', value: `$${totalExpenses.toLocaleString()}`, change: '+14%', up: false, color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
-    { label: 'Net Profit', value: `$${profit.toLocaleString()}`, change: '+31%', up: true, color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
-    { label: 'Total Sessions', value: totalSessions.toLocaleString(), change: '+18%', up: true, color: '#06b6d4', bg: 'rgba(6,182,212,0.12)' },
+    { label: 'Total Revenue', value: '0 so\'m', change: '+0%', up: true, color: '#7c3aed', bg: 'rgba(124,58,237,0.12)' },
+    { label: 'Total Expenses', value: '0 so\'m', change: '+0%', up: false, color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
+    { label: 'Net Profit', value: '0 so\'m', change: '+0%', up: true, color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
+    { label: 'Total Sessions', value: '0', change: '+0%', up: true, color: '#06b6d4', bg: 'rgba(6,182,212,0.12)' },
   ];
 
   const roomTypeData = [
@@ -33,6 +39,7 @@ export default function Statistics() {
     { name: 'Premium', count: rooms.filter(r => r.type === 'Premium').length },
     { name: 'VIP Suite', count: rooms.filter(r => r.type === 'VIP Suite').length },
   ];
+  const totalRooms = rooms.length || 1;
 
   return (
     <div className="page-content fade-in">
@@ -49,20 +56,24 @@ export default function Statistics() {
       </div>
 
       {/* KPI Cards */}
-      <div className="stats-grid mb-20" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-        {kpis.map((k, i) => (
-          <div key={i} className="stat-card" style={{ borderColor: k.color + '33' }}>
-            <div className="stat-info">
-              <div className="stat-label">{k.label}</div>
-              <div className="stat-value" style={{ fontSize: 22, color: k.color }}>{k.value}</div>
-              <div className={`stat-change ${k.up ? 'up' : 'down'}`} style={{ marginTop: 8 }}>
-                {k.up ? <TrendingUp size={11} style={{ display: 'inline', marginRight: 3 }} /> : <TrendingDown size={11} style={{ display: 'inline', marginRight: 3 }} />}
-                {k.change} vs last year
+      {loading && rooms.length === 0 ? (
+        <SkeletonStatRow cols={4} />
+      ) : (
+        <div className="stats-grid mb-20" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+          {kpis.map((k, i) => (
+            <div key={i} className="stat-card" style={{ borderColor: k.color + '33' }}>
+              <div className="stat-info">
+                <div className="stat-label">{k.label}</div>
+                <div className="stat-value" style={{ fontSize: 22, color: k.color }}>{k.value}</div>
+                <div className={`stat-change ${k.up ? 'up' : 'down'}`} style={{ marginTop: 8 }}>
+                  {k.up ? <TrendingUp size={11} style={{ display: 'inline', marginRight: 3 }} /> : <TrendingDown size={11} style={{ display: 'inline', marginRight: 3 }} />}
+                  {k.change} vs last year
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Revenue & Sessions Chart */}
       <div className="card mb-20">
@@ -157,7 +168,7 @@ export default function Statistics() {
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
           {roomTypeData.map((rt, i) => {
             const colors = ['#7c3aed', '#06b6d4', '#f59e0b'];
-            const pct = Math.round((rt.count / rooms.length) * 100);
+            const pct = rooms.length > 0 ? Math.round((rt.count / totalRooms) * 100) : 0;
             return (
               <div key={i} style={{ flex: 1, minWidth: 150 }}>
                 <div className="flex-between" style={{ marginBottom: 8 }}>

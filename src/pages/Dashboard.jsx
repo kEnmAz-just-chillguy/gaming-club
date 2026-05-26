@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { rooms as initialRooms } from '../data/mockData';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useSupabaseRooms } from '../hooks/useSupabaseRooms';
 import { Monitor, Clock, Gamepad2, DollarSign, Wrench, Search } from 'lucide-react';
 import { formatSomRaw } from '../utils/currency';
+import { SkeletonStatRow, SkeletonRoomGrid } from '../components/Skeleton';
 
 const statusConfig = {
   occupied:    { label: 'Occupied',    color: '#ef4444', bg: 'rgba(239,68,68,0.12)',    dot: '#ef4444',  glow: 'rgba(239,68,68,0.25)' },
@@ -20,25 +20,49 @@ const typeIcons = {
   'PlayStation': '🎮' 
 };
 
+const getSessionTimes = (startTimeStr, endTimeStr) => {
+  const now = Date.now();
+  let startMs = null;
+  let endMs = null;
+  const TWO_HOURS = 2 * 60 * 60 * 1000;
+  const ONE_DAY = 24 * 60 * 60 * 1000;
+
+  if (startTimeStr) {
+    const [h, m] = startTimeStr.split(':').map(Number);
+    const d = new Date();
+    d.setHours(h, m, 0, 0);
+    startMs = d.getTime();
+    if (startMs > now + TWO_HOURS) startMs -= ONE_DAY;
+  }
+
+  if (endTimeStr) {
+    const [h, m] = endTimeStr.split(':').map(Number);
+    const d = new Date();
+    d.setHours(h, m, 0, 0);
+    endMs = d.getTime();
+    if (startMs && endMs < startMs) {
+      endMs += ONE_DAY;
+    } else if (!startMs && endMs < now - 12 * 60 * 60 * 1000) {
+      endMs += ONE_DAY;
+    }
+  }
+
+  return { startMs, endMs };
+};
+
 // Universal Room Timer using absolute timestamps from room object
 function RoomTimer({ room }) {
   const calcTime = () => {
     if (!room || room.status !== 'occupied') return { secs: 0, isCountdown: false };
     const now = Date.now();
     if (room.endTime) {
-      const rem = Math.floor((room.endTime - now) / 1000);
+      const { endMs } = getSessionTimes(room.startTime, room.endTime);
+      const rem = Math.floor((endMs - now) / 1000);
       return { secs: rem > 0 ? rem : 0, isCountdown: true };
     }
     if (room.startTime) {
-      return { secs: Math.floor((now - room.startTime) / 1000), isCountdown: false };
-    }
-    // fallback for legacy mock data
-    if (room.since) {
-      const [h, m] = room.since.split(':').map(Number);
-      const start = new Date();
-      start.setHours(h, m, 0, 0);
-      const diff = Math.floor((now - start.getTime()) / 1000);
-      return { secs: diff > 0 ? diff : 0, isCountdown: false };
+      const { startMs } = getSessionTimes(room.startTime, null);
+      return { secs: Math.floor((now - startMs) / 1000), isCountdown: false };
     }
     return { secs: 0, isCountdown: false };
   };
@@ -77,7 +101,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
-  const [rooms] = useLocalStorage('gc_rooms_v2', initialRooms);
+  const { rooms, loading, error } = useSupabaseRooms();
 
   const counts = {
     all:         rooms.length,
@@ -91,9 +115,7 @@ export default function Dashboard() {
   const filtered = rooms.filter(r => {
     const matchStatus = filter === 'all' || r.status === filter;
     const matchSearch = search === '' ||
-      r.number.toLowerCase().includes(search.toLowerCase()) ||
-      (r.player && r.player.toLowerCase().includes(search.toLowerCase())) ||
-      (r.game && r.game.toLowerCase().includes(search.toLowerCase()));
+      r.number.toLowerCase().includes(search.toLowerCase());
     return matchStatus && matchSearch;
   });
 
@@ -110,32 +132,55 @@ export default function Dashboard() {
     <div className="page-content fade-in">
 
       {/* Header */}
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 22, fontWeight: 800 }}>Live Dashboard</h1>
-        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 3 }}>
-          Live overview of all {rooms.length} gaming rooms
-        </p>
+      <div style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 22, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            Live Dashboard
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: loading ? 'rgba(245,158,11,0.08)' : error ? 'rgba(239,68,68,0.08)' : 'rgba(16,185,129,0.08)',
+              border: `1px solid ${loading ? '#f59e0b33' : error ? '#ef444433' : '#10b98133'}`,
+              borderRadius: 999, padding: '4px 12px', fontSize: 10, fontWeight: 700,
+              color: loading ? '#f59e0b' : error ? '#ef4444' : '#10b981',
+              fontFamily: 'sans-serif', textTransform: 'uppercase', letterSpacing: 0.5
+            }}>
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: loading ? '#f59e0b' : error ? '#ef4444' : '#10b981',
+                boxShadow: `0 0 8px ${loading ? '#f59e0b' : error ? '#ef4444' : '#10b981'}`,
+              }} className={loading ? "" : "pulse-badge"} />
+              {loading ? 'Syncing...' : error ? 'Offline (Local Sync)' : 'Supabase Live'}
+            </span>
+          </h1>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 3 }}>
+            Live overview of all {rooms.length} gaming rooms
+          </p>
+        </div>
       </div>
 
       {/* Summary Strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
-        {[
-          { icon: Gamepad2, label: 'Occupied',    value: counts.occupied,    color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
-          { icon: Monitor,  label: 'Available',   value: counts.available,   color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
-          { icon: Wrench,   label: 'Maintenance', value: counts.maintenance, color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
-          { icon: DollarSign, label: 'Revenue Today', value: formatSomRaw(totalRevenue), color: '#7c3aed', bg: 'rgba(124,58,237,0.12)' },
-        ].map((s, i) => (
-          <div key={i} className="stat-card" style={{ padding: '18px 20px' }}>
-            <div className="stat-icon" style={{ background: s.bg, color: s.color, width: 44, height: 44, borderRadius: 12, fontSize: 20 }}>
-              <s.icon size={20} />
+      {loading && rooms.length === 0 ? (
+        <SkeletonStatRow cols={4} />
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
+          {[
+            { icon: Gamepad2, label: 'Occupied',    value: counts.occupied,    color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
+            { icon: Monitor,  label: 'Available',   value: counts.available,   color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
+            { icon: Wrench,   label: 'Maintenance', value: counts.maintenance, color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+            { icon: DollarSign, label: 'Revenue Today', value: formatSomRaw(totalRevenue), color: '#7c3aed', bg: 'rgba(124,58,237,0.12)' },
+          ].map((s, i) => (
+            <div key={i} className="stat-card" style={{ padding: '18px 20px' }}>
+              <div className="stat-icon" style={{ background: s.bg, color: s.color, width: 44, height: 44, borderRadius: 12, fontSize: 20 }}>
+                <s.icon size={20} />
+              </div>
+              <div className="stat-info">
+                <div className="stat-label">{s.label}</div>
+                <div className="stat-value" style={{ fontSize: 24 }}>{s.value}</div>
+              </div>
             </div>
-            <div className="stat-info">
-              <div className="stat-label">{s.label}</div>
-              <div className="stat-value" style={{ fontSize: 24 }}>{s.value}</div>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Filters + Search */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -159,7 +204,7 @@ export default function Dashboard() {
         }}>
           <Search size={13} color="var(--text-muted)" />
           <input
-            placeholder="Room, player, game..."
+            placeholder="Room..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{
@@ -172,7 +217,9 @@ export default function Dashboard() {
       </div>
 
       {/* Room Cards Grid */}
-      {sortedFiltered.length === 0 ? (
+      {loading && rooms.length === 0 ? (
+        <SkeletonRoomGrid count={8} />
+      ) : filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
           <div style={{ fontSize: 15 }}>No rooms match your filter</div>
@@ -260,9 +307,6 @@ export default function Dashboard() {
                     <Gamepad2 size={12} color="var(--text-muted)" />
                     <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>{room.console}</span>
                   </div>
-                  {room.status === 'occupied' && room.revenue > 0 && (
-                    <span style={{ fontSize: 13, fontWeight: 800, color: '#10b981' }}>{formatSomRaw(room.revenue)}</span>
-                  )}
                 </div>
               </div>
             );

@@ -1,23 +1,12 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../config/supabase';
+
 import { Plus, X, Search, Edit2, Trash2 } from 'lucide-react';
 
 export default function Employees() {
-  const [employees, setEmployees] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchEmployees = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('employees')
-      .select('*')
-      .order('id', { ascending: true });
-    
-    if (!error && data) {
-      setEmployees(data);
-    }
-    setLoading(false);
-  };
+  const [employees, setEmployees] = useState(() => {
+    const raw = localStorage.getItem('employees');
+    return raw ? JSON.parse(raw) : [];
+  });
 
   useEffect(() => {
     fetchEmployees();

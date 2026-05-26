@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { rooms as initialRooms } from '../data/mockData';
+import { useSupabaseRooms } from '../hooks/useSupabaseRooms';
 import { Monitor, Users, Gamepad2, Clock, Plus, X, Check, Trash2, Edit } from 'lucide-react';
+import { formatSomRaw } from '../utils/currency';
+import { SkeletonRoomGrid } from '../components/Skeleton';
 
 const statusConfig = {
   occupied: { label: 'Occupied', color: 'var(--red)', bg: 'rgba(239,68,68,0.12)', dot: '#ef4444' },
@@ -11,71 +13,13 @@ const statusConfig = {
 import { supabase } from '../config/supabase';
 
 export default function Rooms() {
-  const [rooms, setRooms] = useState(() => {
-    const saved = localStorage.getItem('gc_rooms_v2');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Failed to parse rooms from localStorage', e);
-      }
-    }
-    return initialRooms;
-  });
-
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-
-  const getRooms = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('rooms')
-        .select('*')
-        .order('id', { ascending: false });
-      if (error) throw error;
-      if (data && data.length > 0) {
-        setRooms(data);
-      }
-    } catch (err) {
-      console.error("Error fetching rooms from Supabase:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    getRooms();
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('gc_rooms_v2', JSON.stringify(rooms));
-    window.dispatchEvent(new Event('rooms_updated'));
-  }, [rooms]);
-
+  const { rooms, loading, addRoom, updateRoom, deleteRoom } = useSupabaseRooms();
   const [filter, setFilter] = useState('all');
   const [selected, setSelected] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [newRoom, setNewRoom] = useState({ number: '', type: '', equipment: '', pricePerHour: '' });
   const [roomToDelete, setRoomToDelete] = useState(null);
   const [editRoom, setEditRoom] = useState(null);
-
-  const renderRoomSkeletons = () => (
-    <div className="room-grid">
-      {[...Array(6)].map((_, i) => (
-        <div key={i} className="room-card skeleton" style={{ minHeight: 140, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div className="skeleton-text" style={{ width: '40%', height: 20, marginBottom: 0 }} />
-          </div>
-          <div className="skeleton-text" style={{ width: '30%', height: 12, marginTop: 8 }} />
-          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-            <div style={{ flex: 1, height: 32, background: 'rgba(255,255,255,0.03)', borderRadius: 6 }} />
-            <div style={{ flex: 1, height: 32, background: 'rgba(255,255,255,0.03)', borderRadius: 6 }} />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
 
   const filtered = filter === 'all' ? rooms : rooms.filter(r => r.status === filter);
   const sortedFiltered = [...filtered].sort((a, b) => {
@@ -89,91 +33,37 @@ export default function Rooms() {
 
   const handleStatusChange = async (id, newStatus) => {
     try {
-      const { error } = await supabase
-        .from('rooms')
-        .update({
-          status: newStatus,
-          player: null,
-          game: null,
-          since: null,
-          revenue: 0,
-          startTime: null,
-          endTime: null,
-          sessionMode: null
-        })
-        .eq('id', id);
-      if (error) throw error;
-      
-      setRooms(prev => prev.map(r => r.id === id ? { ...r, status: newStatus, player: null, game: null, since: null, revenue: 0, startTime: null, endTime: null, sessionMode: null } : r));
-    } catch (err) {
-      console.error("Failed to update status in Supabase:", err);
-      // Fallback
-      setRooms(prev => prev.map(r => r.id === id ? { ...r, status: newStatus, player: null, game: null, since: null, revenue: 0 } : r));
+      await updateRoom(id, { status: newStatus, startTime: null, endTime: null, revenue: 0 });
+      setSelected(null);
+    } catch (e) {
+      console.error(e);
     }
-    setSelected(null);
   };
 
   const handleAdd = async () => {
     if (!newRoom.number) return;
-    setSubmitting(true);
-    const roomPayload = {
-      number: newRoom.number,
-      type: newRoom.type,
-      equipment: newRoom.equipment,
-      pricePerHour: newRoom.pricePerHour ? Number(newRoom.pricePerHour) : null,
-      status: 'available',
-      game: null,
-      player: null,
-      since: null,
-      revenue: 0
-    };
-
     try {
-      const { data, error } = await supabase
-        .from('rooms')
-        .insert([roomPayload])
-        .select();
-      if (error) throw error;
-      
-      if (data && data[0]) {
-        setRooms(prev => [data[0], ...prev]);
-      } else {
-        setRooms(prev => [{ id: Date.now(), ...roomPayload }, ...prev]);
-      }
-    } catch (err) {
-      console.error("Failed to add room to Supabase:", err);
-      setRooms(prev => [...prev, { id: Date.now(), ...roomPayload }]);
-    } finally {
-      setSubmitting(false);
+      await addRoom({
+        ...newRoom,
+        status: 'available',
+        startTime: null,
+        endTime: null,
+        revenue: 0
+      });
       setShowAdd(false);
-      setNewRoom({ number: '', type: '', equipment: '', pricePerHour: '' });
+      setNewRoom({ number: '', type: 'Standard', equipment: '', pricePerHour: '' });
+    } catch (e) {
+      console.error(e);
     }
   };
 
   const handleEdit = async () => {
     if (!editRoom.number) return;
-    setSubmitting(true);
-    const roomPayload = {
-      number: editRoom.number,
-      type: editRoom.type,
-      equipment: editRoom.equipment,
-      pricePerHour: editRoom.pricePerHour ? Number(editRoom.pricePerHour) : null
-    };
-
     try {
-      const { error } = await supabase
-        .from('rooms')
-        .update(roomPayload)
-        .eq('id', editRoom.id);
-      if (error) throw error;
-
-      setRooms(prev => prev.map(r => r.id === editRoom.id ? { ...r, ...editRoom } : r));
-    } catch (err) {
-      console.error("Failed to edit room in Supabase:", err);
-      setRooms(prev => prev.map(r => r.id === editRoom.id ? { ...r, ...editRoom } : r));
-    } finally {
-      setSubmitting(false);
+      await updateRoom(editRoom.id, editRoom);
       setEditRoom(null);
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -182,23 +72,14 @@ export default function Rooms() {
   };
 
   const confirmDelete = async () => {
-    if (!roomToDelete) return;
-    setSubmitting(true);
-    try {
-      const { error } = await supabase
-        .from('rooms')
-        .delete()
-        .eq('id', roomToDelete);
-      if (error) throw error;
-
-      setRooms(prev => prev.filter(r => r.id !== roomToDelete));
-    } catch (err) {
-      console.error("Failed to delete room from Supabase:", err);
-      setRooms(prev => prev.filter(r => r.id !== roomToDelete));
-    } finally {
-      setSubmitting(false);
-      setSelected(null);
-      setRoomToDelete(null);
+    if (roomToDelete) {
+      try {
+        await deleteRoom(roomToDelete);
+        setSelected(null);
+        setRoomToDelete(null);
+      } catch (e) {
+        console.error(e);
+      }
     }
   };
 
@@ -218,14 +99,43 @@ export default function Rooms() {
 
 
       {/* Room Grid */}
-      {loading ? renderRoomSkeletons() : (
+      {loading && rooms.length === 0 ? (
+        <SkeletonRoomGrid count={6} />
+      ) : filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🏠</div>
+          <div style={{ fontSize: 15 }}>No rooms found</div>
+        </div>
+      ) : null}
+      {!loading || rooms.length > 0 ? (
         <div className="room-grid">
-          {sortedFiltered.map(room => {
-            const cfg = statusConfig[room.status];
-            return (
-              <div key={room.id} className={`room-card ${room.status}`} onClick={() => setSelected(room)}>
-                <div className="flex-between">
-                  <div className="room-number">{room.number}</div>
+          {filtered.map(room => {
+          const cfg = statusConfig[room.status];
+          return (
+            <div key={room.id} className={`room-card ${room.status}`} onClick={() => setSelected(room)}>
+              <div className="flex-between">
+                <div className="room-number">{room.number}</div>
+              </div>
+              <div className="room-type">{room.type}</div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                <button 
+                  className="btn btn-secondary btn-sm" 
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  onClick={(e) => { e.stopPropagation(); setEditRoom(room); }}
+                >
+                  <Edit size={14} style={{ marginRight: 6 }} /> Edit
+                </button>
+                <button 
+                  className="btn btn-sm" 
+                  style={{ flex: 1, background: 'rgba(239,68,68,0.1)', color: 'var(--red)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  onClick={(e) => { e.stopPropagation(); setRoomToDelete(room.id); }}
+                >
+                  <Trash2 size={14} style={{ marginRight: 6 }} /> Delete
+                </button>
+              </div>
+              {room.status === 'occupied' && (
+                <div style={{ marginTop: 12, padding: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: 8 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Current Session Active</div>
                 </div>
                 <div className="room-type">{room.type}</div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
@@ -244,11 +154,18 @@ export default function Rooms() {
                     <Trash2 size={14} style={{ marginRight: 6 }} /> Delete
                   </button>
                 </div>
+                {room.startTime && (
+                  <div className="flex-gap" style={{ gap: 6 }}>
+                    <Clock size={12} color="var(--text-muted)" />
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{room.startTime}</span>
+                  </div>
+                )}
               </div>
-            );
-          })}
+            </div>
+          );
+        })}
         </div>
-      )}
+      ) : null}
 
       {/* Room Detail Modal */}
       {selected && (
@@ -259,7 +176,7 @@ export default function Rooms() {
               <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={18} /></button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-              {[['Type', selected.type], ['Equipment', selected.equipment || (selected.pcs ? `${selected.pcs} PCs` : '')], ['Price/Hour', selected.pricePerHour ? `$${selected.pricePerHour}` : '—'], ['Status', selected.status], ['Game', selected.game || '—'], ['Player', selected.player || '—'], ['Since', selected.since || '—'], ['Revenue', selected.revenue ? `$${selected.revenue}` : '—']].map(([k, v]) => (
+              {[['Type', selected.type], ['Equipment', selected.equipment || (selected.pcs ? `${selected.pcs} PCs` : '')], ['Price/Hour', selected.pricePerHour ? `$${selected.pricePerHour}` : '—'], ['Status', selected.status], ['Start Time', selected.startTime || '—'], ['End Time', selected.endTime || '—'], ['Revenue', selected.revenue ? `$${selected.revenue}` : '—']].map(([k, v]) => (
                 <div key={k} className="flex-between">
                   <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{k}</span>
                   <span style={{ fontSize: 13, fontWeight: 600 }}>{v}</span>

@@ -5,7 +5,7 @@ import {
   Users, Wallet, Coffee, History, Palette,
   ChevronRight, Gamepad2
 } from 'lucide-react';
-import { rooms as initialRooms } from '../data/mockData';
+
 import { useAuth } from '../context/AuthContext';
 
 const navItems = [
@@ -23,19 +23,13 @@ const navItems = [
 export default function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [roomsCount, setRoomsCount] = useState(initialRooms.length);
+  const [roomsCount, setRoomsCount] = useState(0);
   const { user } = useAuth();
 
   useEffect(() => {
     const updateCount = () => {
-      const saved = localStorage.getItem('gc_rooms_v2');
-      if (saved) {
-        try {
-          setRoomsCount(JSON.parse(saved).length);
-        } catch (e) {}
-      } else {
-        setRoomsCount(initialRooms.length);
-      }
+      const count = localStorage.getItem('gc_rooms_count');
+      if (count) setRoomsCount(Number(count));
     };
     updateCount();
     window.addEventListener('rooms_updated', updateCount);
