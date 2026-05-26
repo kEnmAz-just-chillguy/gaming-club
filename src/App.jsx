@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import Dashboard from './pages/Dashboard';
@@ -13,8 +15,6 @@ import Appearance from './pages/Appearance';
 import Settings from './pages/Settings';
 import RoomDetail from './pages/RoomDetail';
 import Login from './pages/Login';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { ThemeProvider } from './context/ThemeContext';
 
 function ProtectedLayout() {
   const { user } = useAuth();
@@ -47,15 +47,6 @@ function ProtectedLayout() {
 }
 
 export default function App() {
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'light') {
-      document.documentElement.classList.add('light-mode');
-    } else {
-      document.documentElement.classList.remove('light-mode');
-    }
-  }, []);
-
   return (
     <ThemeProvider>
       <AuthProvider>

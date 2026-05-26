@@ -107,7 +107,7 @@ body {
   font-family: 'Orbitron', sans-serif;
   font-size: 18px;
   font-weight: 700;
-  background: linear-gradient(135deg, #fff, var(--accent-light));
+  background: linear-gradient(135deg, var(--text-primary), var(--accent-light));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -363,7 +363,7 @@ body {
 table { width: 100%; border-collapse: collapse; }
 thead tr { border-bottom: 1px solid var(--border); }
 th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); }
-td { padding: 13px 14px; font-size: 13px; color: var(--text-secondary); border-bottom: 1px solid rgba(255,255,255,0.04); }
+td { padding: 13px 14px; font-size: 13px; color: var(--text-secondary); border-bottom: 1px solid var(--border); }
 tbody tr:hover td { background: rgba(124,58,237,0.05); color: var(--text-primary); }
 tbody tr:last-child td { border-bottom: none; }
 
@@ -393,7 +393,7 @@ tbody tr:last-child td { border-bottom: none; }
 }
 
 /* Progress */
-.progress-bar { height: 6px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; }
+.progress-bar { height: 6px; background: var(--progress-track); border-radius: 999px; overflow: hidden; }
 .progress-fill { height: 100%; border-radius: 999px; transition: width 0.6s ease; }
 
 /* Form elements */
@@ -413,6 +413,10 @@ tbody tr:last-child td { border-bottom: none; }
 .form-input:focus { border-color: var(--border-accent); box-shadow: 0 0 0 3px var(--accent-glow); }
 .form-input::placeholder { color: var(--text-muted); }
 select.form-input { cursor: pointer; }
+select.form-input option {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+}
 
 /* Toggle */
 .toggle { position: relative; width: 44px; height: 24px; }
@@ -421,7 +425,7 @@ select.form-input { cursor: pointer; }
   position: absolute;
   cursor: pointer;
   inset: 0;
-  background: rgba(255,255,255,0.1);
+  background: var(--toggle-bg);
   border-radius: 999px;
   transition: var(--transition);
 }
@@ -463,13 +467,13 @@ select.form-input { cursor: pointer; }
 /* Room cards */
 .room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; }
 .room-card {
-  background: linear-gradient(145deg, #1e243a, #161b2e);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: var(--room-card-bg);
+  border: 1px solid var(--border);
   border-radius: 18px;
   padding: 22px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -477,14 +481,14 @@ select.form-input { cursor: pointer; }
 .room-card:hover { 
   border-color: var(--accent); 
   transform: translateY(-4px) scale(1.01); 
-  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.4), 0 0 10px rgba(124, 58, 237, 0.1); 
+  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.2), 0 0 10px rgba(124, 58, 237, 0.1); 
 }
 .room-number { 
   font-family: 'Orbitron', sans-serif; 
   font-size: 24px; 
   font-weight: 800; 
   letter-spacing: 1px;
-  background: linear-gradient(to bottom, #fff, #94a3b8);
+  background: linear-gradient(to bottom, var(--text-primary), var(--text-secondary));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -537,6 +541,11 @@ select.form-input { cursor: pointer; }
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+}
+.spinner-sm {
+  width: 14px;
+  height: 14px;
+  border-width: 1.5px;
 }
 
 /* Fade in */
@@ -638,4 +647,52 @@ select.form-input { cursor: pointer; }
   .stats-grid { grid-template-columns: 1fr 1fr; }
   .grid-3 { grid-template-columns: 1fr; }
   .page-content { padding: 16px; }
+}
+
+@keyframes pulse-badge {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 0.6;
+  }
+}
+
+.pulse-badge {
+  animation: pulse-badge 2s infinite ease-in-out;
+}
+
+/* ── Skeleton loading ─────────────────────────────────────────────────────── */
+@keyframes skeleton-shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-card)       0%,
+    rgba(255,255,255,0.06) 40%,
+    var(--bg-card)       80%
+  );
+  background-size: 600px 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+.light-mode .skeleton {
+  background: linear-gradient(
+    90deg,
+    #e2e8f0 0%,
+    #f1f5f9 40%,
+    #e2e8f0 80%
+  );
+  background-size: 600px 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
 }
