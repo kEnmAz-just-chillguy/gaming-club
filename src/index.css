@@ -26,6 +26,8 @@
   --radius: 14px;
   --radius-sm: 8px;
   --transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+  --skeleton-base: rgba(255, 255, 255, 0.04);
+  --skeleton-shimmer: rgba(255, 255, 255, 0.1);
 }
 
 .light-mode {
@@ -41,6 +43,8 @@
   --border-accent: rgba(124, 58, 237, 0.35);
   --shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
   --accent-glow: rgba(124, 58, 237, 0.15);
+  --skeleton-base: rgba(0, 0, 0, 0.05);
+  --skeleton-shimmer: rgba(0, 0, 0, 0.12);
 }
 
 
@@ -601,6 +605,35 @@ select.form-input { cursor: pointer; }
 }
 .bar-fill:hover { filter: brightness(1.2); cursor: pointer; }
 .bar-label { font-size: 10px; color: var(--text-muted); }
+
+/* Skeleton Loading */
+.skeleton {
+  background-color: var(--skeleton-base);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0px,
+    var(--skeleton-shimmer) 40px,
+    transparent 80px
+  );
+  background-size: 600px 100%;
+  animation: skeletonShimmer 2s infinite linear;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes skeletonShimmer {
+  0% { background-position: -300px 0; }
+  100% { background-position: 600px 0; }
+}
+
+.skeleton-card {
+  height: 160px;
+  border-radius: var(--radius);
+}
+.skeleton-row {
+  height: 52px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+}
 
 /* Responsive */
 @media (max-width: 1100px) {
