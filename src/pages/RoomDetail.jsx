@@ -7,13 +7,21 @@ import {
   ArrowLeft, Monitor, Clock, Gamepad2, Users, DollarSign,
   Wrench, Coffee, CheckCircle, XCircle, AlertTriangle, ShoppingCart, X
 } from 'lucide-react';
+import { supabase } from '../config/supabase';
 
 const statusCfg = {
-  occupied:    { label: 'Occupied',    color: '#ef4444', bg: 'rgba(239,68,68,0.12)',  dot: '#ef4444' },
-  available:   { label: 'Available',   color: '#10b981', bg: 'rgba(16,185,129,0.12)', dot: '#10b981' },
+  occupied: { label: 'Occupied', color: '#ef4444', bg: 'rgba(239,68,68,0.12)', dot: '#ef4444' },
+  available: { label: 'Available', color: '#10b981', bg: 'rgba(16,185,129,0.12)', dot: '#10b981' },
   maintenance: { label: 'Maintenance', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', dot: '#f59e0b' },
 };
-const typeIcons = { 'VIP Suite': '👑', 'Premium': '⭐', 'Standard': '🖥️' };
+const typeIcons = { 
+  'VIP Suite': '👑', 
+  'VIP': '👑', 
+  'Premium': '⭐', 
+  'Standard': '🖥️', 
+  'Obshiy': '👥', 
+  'PlayStation': '🎮' 
+};
 
 const SectionTitle = ({ icon: Icon, label, color = 'var(--accent-light)' }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
@@ -28,6 +36,24 @@ export default function RoomDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [globalRooms, setGlobalRooms] = useLocalStorage('gc_rooms_v2', mockRooms);
+
+  const getRooms = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("rooms")
+        .select("*");
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setGlobalRooms(data);
+      }
+    } catch (err) {
+      console.error("Error fetching rooms in RoomDetail:", err);
+    }
+  };
+
+  useEffect(() => {
+    getRooms();
+  }, []);
   const [globalBarOrders, setGlobalBarOrders] = useLocalStorage('gc_roomBarOrders', mockBarOrders);
   const [barItems] = useLocalStorage('gc_barItems', mockBarItems);
   const room = globalRooms.find(r => r.id === Number(id));
@@ -44,14 +70,14 @@ export default function RoomDetail() {
   // Sync local state back to localStorage
   useEffect(() => {
     setGlobalRooms(prev => prev.map(r => r.id === roomState.id ? roomState : r));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomState]);
 
   useEffect(() => {
     if (roomState) {
       setGlobalBarOrders(prev => ({ ...prev, [roomState.number]: liveBarOrders }));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveBarOrders, roomState?.number]);
   const [remaining, setRemaining] = useState(() => {
     if (room?.endTime) return Math.max(0, Math.floor((room.endTime - Date.now()) / 1000));
@@ -88,7 +114,7 @@ export default function RoomDetail() {
   };
 
   const getTimerColor = (secs) => {
-    if (secs <= 0)   return '#6b7280';
+    if (secs <= 0) return '#6b7280';
     if (secs <= 120) return '#ef4444';
     if (secs <= 600) return '#f59e0b';
     return '#10b981';
@@ -119,11 +145,11 @@ export default function RoomDetail() {
         isVipRef.current = true;
       }
     };
-    
+
     tick();
     timerRef.current = setInterval(tick, 1000);
     return () => clearInterval(timerRef.current);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomState?.status, roomState?.startTime, roomState?.endTime, roomState?.sessionMode]);
 
   if (!room) return (
@@ -171,23 +197,28 @@ export default function RoomDetail() {
     );
   };
 
-  const handleOccupy = () => {
+  const handleOccupy = async () => {
     if (occupyMode !== 'vip' && !occupyValue) return;
     const val = Number(occupyValue);
     const nowMs = Date.now();
     const sinceStr = new Date(nowMs).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
 
+    let updatedRoom;
     if (occupyMode === 'vip') {
       isVipRef.current = true;
       setVipElapsed(0);
       setRemaining(0);
       setTotalSecs(0);
-      setRoomState(prev => ({
-        ...prev, status: 'occupied',
-        player: null, game: null,
-        since: sinceStr, startTime: nowMs, endTime: null,
-        revenue: 0, sessionMode: 'vip',
-      }));
+      updatedRoom = {
+        status: 'occupied',
+        player: null,
+        game: null,
+        since: sinceStr,
+        startTime: nowMs,
+        endTime: null,
+        revenue: 0,
+        sessionMode: 'vip',
+      };
     } else {
       isVipRef.current = false;
       const secs = occupyMode === 'hours'
@@ -195,14 +226,30 @@ export default function RoomDetail() {
         : Math.round((val / RATE_PER_HOUR) * 3600);
       setTotalSecs(secs);
       setRemaining(secs);
-      setRoomState(prev => ({
-        ...prev, status: 'occupied',
-        player: null, game: null,
-        since: sinceStr, startTime: nowMs, endTime: nowMs + (secs * 1000),
+      updatedRoom = {
+        status: 'occupied',
+        player: null,
+        game: null,
+        since: sinceStr,
+        startTime: nowMs,
+        endTime: nowMs + (secs * 1000),
         revenue: occupyMode === 'amount' ? val : 0,
         sessionMode: occupyMode,
-      }));
+      };
     }
+
+    try {
+      const { error } = await supabase
+        .from('rooms')
+        .update(updatedRoom)
+        .eq('id', roomState.id);
+      if (error) throw error;
+      setRoomState(prev => ({ ...prev, ...updatedRoom }));
+    } catch (err) {
+      console.error("Failed to occupy room in Supabase:", err);
+      setRoomState(prev => ({ ...prev, ...updatedRoom }));
+    }
+
     setShowOccupyModal(false);
     setOccupyValue('');
   };
@@ -220,21 +267,89 @@ export default function RoomDetail() {
     isVipRef.current = false;
   };
 
-  const confirmCheckout = () => {
+  const confirmCheckout = async () => {
+    const updatedRoom = {
+      status: 'available',
+      player: null,
+      game: null,
+      since: null,
+      startTime: null,
+      endTime: null,
+      revenue: checkoutAmount
+    };
+
+    try {
+      const { error } = await supabase
+        .from('rooms')
+        .update(updatedRoom)
+        .eq('id', roomState.id);
+      if (error) throw error;
+      setRoomState(prev => ({ ...prev, ...updatedRoom }));
+    } catch (err) {
+      console.error("Failed to checkout room in Supabase:", err);
+      setRoomState(prev => ({ ...prev, ...updatedRoom }));
+    }
+
     setShowCheckout(false);
     setVipElapsed(0);
     setRemaining(0);
     setLiveBarOrders([]);
-    setRoomState(prev => ({ ...prev, status: 'available', player: null, game: null, since: null, startTime: null, endTime: null, revenue: checkoutAmount }));
   };
 
-  const handleMaintenance = () => {
+  const handleMaintenance = async () => {
+    const updatedRoom = {
+      status: 'maintenance',
+      player: null,
+      game: null,
+      since: null,
+      startTime: null,
+      endTime: null,
+      revenue: 0,
+      sessionMode: null
+    };
+
+    try {
+      const { error } = await supabase
+        .from('rooms')
+        .update(updatedRoom)
+        .eq('id', roomState.id);
+      if (error) throw error;
+      setRoomState(prev => ({ ...prev, ...updatedRoom }));
+    } catch (err) {
+      console.error("Failed to set maintenance in Supabase:", err);
+      setRoomState(prev => ({ ...prev, ...updatedRoom }));
+    }
+
     clearInterval(timerRef.current);
     isVipRef.current = false;
     setVipElapsed(0);
     setRemaining(0);
     setLiveBarOrders([]);
-    setRoomState(prev => ({ ...prev, status: 'maintenance', player: null, game: null, since: null }));
+  };
+
+  const handleMarkAvailable = async () => {
+    const updatedRoom = {
+      status: 'available',
+      player: null,
+      game: null,
+      since: null,
+      startTime: null,
+      endTime: null,
+      revenue: 0,
+      sessionMode: null
+    };
+
+    try {
+      const { error } = await supabase
+        .from('rooms')
+        .update(updatedRoom)
+        .eq('id', roomState.id);
+      if (error) throw error;
+      setRoomState(prev => ({ ...prev, ...updatedRoom }));
+    } catch (err) {
+      console.error("Failed to mark available in Supabase:", err);
+      setRoomState(prev => ({ ...prev, ...updatedRoom }));
+    }
   };
 
   return (
@@ -250,7 +365,7 @@ export default function RoomDetail() {
             Room {room.number}
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 3 }}>
-            {typeIcons[room.type]} {room.type} · {room.console}
+            {typeIcons[room.type] || '🎮'} {room.type} · {room.console}
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: cfg.bg, borderRadius: 999, padding: '6px 14px', fontSize: 13, fontWeight: 700, color: cfg.color }}>
@@ -312,8 +427,8 @@ export default function RoomDetail() {
                     {timesUp
                       ? <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 18, fontWeight: 800, color: '#6b7280' }}>⏰ TIME&apos;S UP</span>
                       : <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: 28, fontWeight: 800, color: timerColor, letterSpacing: 3, transition: 'color 0.5s' }}>
-                          {formatCountdown(displaySecs)}
-                        </span>
+                        {formatCountdown(displaySecs)}
+                      </span>
                     }
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.8 }}>
@@ -370,7 +485,7 @@ export default function RoomDetail() {
             <Wrench size={15} /> Set Maintenance
           </button>
           {roomState.status !== 'available' && (
-            <button className="btn btn-secondary" onClick={() => setRoomState(prev => ({ ...prev, status: 'available', player: null, game: null, since: null }))} style={{ justifyContent: 'center' }}>
+            <button className="btn btn-secondary" onClick={handleMarkAvailable} style={{ justifyContent: 'center' }}>
               <CheckCircle size={15} /> Mark Available
             </button>
           )}
