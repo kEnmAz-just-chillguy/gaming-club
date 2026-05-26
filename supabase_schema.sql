@@ -60,6 +60,7 @@ CREATE TABLE spendings (
     icon TEXT,
     color TEXT,
     type TEXT DEFAULT 'expense',
+    description TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 

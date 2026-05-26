@@ -14,7 +14,14 @@ const statusCfg = {
   available: { label: 'Available', color: '#10b981', bg: 'rgba(16,185,129,0.12)', dot: '#10b981' },
   maintenance: { label: 'Maintenance', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', dot: '#f59e0b' },
 };
-const typeIcons = { 'VIP Suite': '👑', 'Premium': '⭐', 'Standard': '🖥️' };
+const typeIcons = { 
+  'VIP Suite': '👑', 
+  'VIP': '👑', 
+  'Premium': '⭐', 
+  'Standard': '🖥️', 
+  'Obshiy': '👥', 
+  'PlayStation': '🎮' 
+};
 
 const SectionTitle = ({ icon: Icon, label, color = 'var(--accent-light)' }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
@@ -358,7 +365,7 @@ export default function RoomDetail() {
             Room {room.number}
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 3 }}>
-            {typeIcons[room.type]} {room.type} · {room.console}
+            {typeIcons[room.type] || '🎮'} {room.type} · {room.console}
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: cfg.bg, borderRadius: 999, padding: '6px 14px', fontSize: 13, fontWeight: 700, color: cfg.color }}>
