@@ -11,28 +11,32 @@ export default function Employees() {
 
   const fetchEmployees = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('employees')
-      .select('*')
-      .order('id', { ascending: false });
-    
-    if (!error && data) {
-      setEmployees(data);
+    try {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('*')
+        .order('id', { ascending: false });
+      
+      if (!error && data) {
+        setEmployees(data);
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
     fetchEmployees();
   }, []);
+  
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState({ name: '', role: '', telephone: '', email: '', password: '', avatar: '', color: '#7c3aed' });
 
   const filtered = employees.filter(e =>
-    e.name.toLowerCase().includes(search.toLowerCase()) ||
-    e.role.toLowerCase().includes(search.toLowerCase())
+    e.name && e.name.toLowerCase().includes(search.toLowerCase()) ||
+    e.role && e.role.toLowerCase().includes(search.toLowerCase())
   );
 
   const handleSave = async () => {
@@ -197,6 +201,7 @@ export default function Employees() {
           </div>
         </div>
       )}
+
       {/* Delete Confirmation Modal */}
       {employeeToDelete && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }} onClick={() => !isDeleting && setEmployeeToDelete(null)}>
