@@ -26,11 +26,8 @@
   --radius: 14px;
   --radius-sm: 8px;
   --transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
-  --room-card-bg: linear-gradient(145deg, #1e243a, #161b2e);
-  --progress-track: rgba(255, 255, 255, 0.08);
-  --toggle-bg: rgba(255, 255, 255, 0.1);
-  --skeleton-bg: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
-  --skeleton-text-bg: rgba(255,255,255,0.06);
+  --skeleton-bg: rgba(255, 255, 255, 0.04);
+  --skeleton-pulse: rgba(255, 255, 255, 0.08);
 }
 
 .light-mode {
@@ -46,11 +43,8 @@
   --border-accent: rgba(124, 58, 237, 0.35);
   --shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
   --accent-glow: rgba(124, 58, 237, 0.15);
-  --room-card-bg: linear-gradient(145deg, #ffffff, #f8fafc);
-  --progress-track: rgba(0, 0, 0, 0.06);
-  --toggle-bg: rgba(0, 0, 0, 0.08);
-  --skeleton-bg: linear-gradient(90deg, rgba(0,0,0,0.03) 25%, rgba(0,0,0,0.06) 50%, rgba(0,0,0,0.03) 75%);
-  --skeleton-text-bg: rgba(0,0,0,0.05);
+  --skeleton-bg: rgba(0, 0, 0, 0.04);
+  --skeleton-pulse: rgba(0, 0, 0, 0.08);
 }
 
 
@@ -621,33 +615,25 @@ select.form-input option {
 .bar-fill:hover { filter: brightness(1.2); cursor: pointer; }
 .bar-label { font-size: 10px; color: var(--text-muted); }
 
-/* Skeleton animation */
+/* Skeleton Loading */
 @keyframes skeletonPulse {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 0.25; }
+  0% { background-color: var(--skeleton-bg); }
+  50% { background-color: var(--skeleton-pulse); }
+  100% { background-color: var(--skeleton-bg); }
 }
 .skeleton {
   animation: skeletonPulse 1.5s ease-in-out infinite;
-  background: var(--skeleton-bg);
-  background-size: 200% 100%;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
-.skeleton-text {
-  height: 12px;
-  margin-bottom: 8px;
-  background: var(--skeleton-text-bg);
-  border-radius: 4px;
+.skeleton-card {
+  height: 160px;
+  border-radius: var(--radius);
 }
-.skeleton-text.header {
-  height: 20px;
-  width: 60%;
-  margin-bottom: 12px;
+.skeleton-row {
+  height: 52px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
 }
-.skeleton-text.short {
-  width: 40%;
-}
-.h-32 { height: 128px; }
-.w-32 { width: 128px; }
 
 /* Responsive */
 @media (max-width: 1100px) {
