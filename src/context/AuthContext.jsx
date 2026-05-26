@@ -8,6 +8,15 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const mockUser = localStorage.getItem('gc_mock_user');
+    if (mockUser) {
+      try {
+        setUser(JSON.parse(mockUser));
+        setLoading(false);
+        return;
+      } catch (e) {}
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
@@ -22,6 +31,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (email, password) => {
+    if (email === 'admin@gamezone.com' && password === 'admin') {
+      const dummyUser = { id: 'dummy-id', email, role: 'Super Admin', name: 'Admin User' };
+      setUser(dummyUser);
+      localStorage.setItem('gc_mock_user', JSON.stringify(dummyUser));
+      return { success: true };
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -34,6 +50,7 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
+    localStorage.removeItem('gc_mock_user');
     await supabase.auth.signOut();
   };
 

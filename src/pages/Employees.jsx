@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../config/supabase';
+
 import { Plus, X, Search, Edit2, Trash2 } from 'lucide-react';
 
 export default function Employees() {
