@@ -1,15 +1,27 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '../config/supabase';
 import { Plus, X, Search, Edit2, Trash2 } from 'lucide-react';
 
 export default function Bars() {
-  const [items, setItems] = useState(() => {
-    const saved = localStorage.getItem('bar_products');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchItems = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('bar_products')
+      .select('*')
+      .order('id', { ascending: true });
+      
+    if (!error && data) {
+      setItems(data);
+    }
+    setLoading(false);
+  };
 
   useEffect(() => {
-    localStorage.setItem('bar_products', JSON.stringify(items));
-  }, [items]);
+    fetchItems();
+  }, []);
 
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
@@ -18,14 +30,25 @@ export default function Bars() {
 
   const filtered = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name) return;
+
+    const itemData = {
+      name: form.name,
+      price: +form.price,
+      sotuv_narxi: +form.sotuv_narxi,
+      quantity: +form.quantity,
+      unit: form.unit
+    };
+
     if (editId) {
-      setItems(prev => prev.map(i => i.id === editId ? { ...i, ...form, price: +form.price, sotuv_narxi: +form.sotuv_narxi, quantity: +form.quantity } : i));
+      await supabase.from('bar_products').update(itemData).eq('id', editId);
       setEditId(null);
     } else {
-      setItems(prev => [...prev, { id: Date.now(), name: form.name, price: +form.price, sotuv_narxi: +form.sotuv_narxi, quantity: +form.quantity, unit: form.unit }]);
+      await supabase.from('bar_products').insert([itemData]);
     }
+    
+    await fetchItems();
     setShowAdd(false);
     setForm({ name: '', price: '', sotuv_narxi: '', quantity: '', unit: 'dona' });
   };
@@ -34,6 +57,11 @@ export default function Bars() {
     setForm({ name: item.name, price: String(item.price), sotuv_narxi: String(item.sotuv_narxi || ''), quantity: String(item.quantity), unit: item.unit || 'dona' });
     setEditId(item.id);
     setShowAdd(true);
+  };
+
+  const handleDelete = async (id) => {
+    await supabase.from('bar_products').delete().eq('id', id);
+    await fetchItems();
   };
 
   return (
@@ -64,7 +92,7 @@ export default function Bars() {
               <div style={{ fontWeight: 600, fontSize: 16 }}>{item.name}</div>
               <div className="flex-gap" style={{ gap: 6 }}>
                 <button className="btn btn-secondary btn-sm" style={{ padding: '4px 8px' }} onClick={() => handleEdit(item)}><Edit2 size={11} /></button>
-                <button className="btn btn-danger btn-sm" style={{ padding: '4px 8px' }} onClick={() => setItems(prev => prev.filter(i => i.id !== item.id))}><Trash2 size={11} /></button>
+                <button className="btn btn-danger btn-sm" style={{ padding: '4px 8px' }} onClick={() => handleDelete(item.id)}><Trash2 size={11} /></button>
               </div>
             </div>
             <div className="mt-16" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
