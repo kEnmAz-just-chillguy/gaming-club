@@ -7,12 +7,10 @@ import { useTheme } from '../context/ThemeContext';
 const titles = {
   '/': { title: 'Dashboard', sub: 'Live overview of every gaming room in the club.' },
   '/rooms': { title: 'Rooms', sub: 'Monitor and manage all gaming rooms.' },
-  '/statistics': { title: 'Statistics', sub: 'Detailed performance analytics and insights.' },
   '/employees': { title: 'Employees', sub: 'Manage your staff and shifts.' },
   '/spending': { title: 'Spending', sub: 'Track expenses and budget allocation.' },
   '/bars': { title: 'Bars', sub: 'Manage bar menu, stock and sales.' },
   '/history': { title: 'History', sub: 'Full log of sessions, purchases and events.' },
-  '/appearance': { title: 'Appearance', sub: 'Customize the look and feel of your panel.' },
   '/settings': { title: 'Settings', sub: 'Configure club settings and preferences.' },
 };
 

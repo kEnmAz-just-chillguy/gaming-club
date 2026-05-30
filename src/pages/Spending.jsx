@@ -46,6 +46,7 @@ export default function Spending() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [employees, setEmployees] = useState([]);
 
   const [localDescriptions, setLocalDescriptions] = useState(() => {
     try {
@@ -80,14 +81,32 @@ export default function Spending() {
     }
   };
 
+  const fetchEmployees = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('*')
+        .order('name', { ascending: true });
+      if (!error && data) {
+        setEmployees(data);
+        if (data.length > 0) {
+          setSelectedEmployeeId(data[0].id.toString());
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching employees in Spending:", err);
+    }
+  };
+
   useEffect(() => {
     getSpendings();
+    fetchEmployees();
   }, []);
 
   const [showAdd, setShowAdd] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [txType, setTxType] = useState('expense'); // 'expense', 'employee_kasa'
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState(employees[0]?.id || '');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [form, setForm] = useState({ name: '', category: 'Jihozlar', amount: '', date: new Date().toISOString().slice(0, 10), icon: '🖥️', description: '' });
   const [filterCat, setFilterCat] = useState('All');
   const [catDropdownOpen, setCatDropdownOpen] = useState(false);
@@ -724,12 +743,9 @@ export default function Spending() {
             inset: 0, 
             background: 'rgba(0,0,0,0.7)', 
             display: 'flex', 
-            alignItems: 'flex-start', 
+            alignItems: 'center', 
             justifyContent: 'center', 
-            zIndex: 200,
-            overflowY: 'auto',
-            paddingTop: '60px',
-            paddingBottom: '40px'
+            zIndex: 200
           }} 
           onClick={() => {
             setShowAdd(false);

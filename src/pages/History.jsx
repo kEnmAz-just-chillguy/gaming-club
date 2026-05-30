@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useAllSessions } from '../hooks/useAllSessions';
 import { formatSomRaw } from '../utils/currency';
-import { SkeletonStatRow, SkeletonSessionRow, SkeletonLine } from '../components/Skeleton';
-import { Search, Clock, Gamepad2, TrendingUp, DollarSign, Crown, BarChart2 } from 'lucide-react';
+import { SkeletonStatRow, SkeletonSessionRow } from '../components/Skeleton';
+import { Search, Clock, Gamepad2, TrendingUp, DollarSign, Crown, BarChart2, Eye, X, ShoppingCart } from 'lucide-react';
 
 export default function History() {
   const { sessions, loading, stats } = useAllSessions();
   const [search, setSearch] = useState('');
   const [modeFilter, setModeFilter] = useState('all');
+  const [selectedSession, setSelectedSession] = useState(null);
 
   const filtered = sessions.filter(s => {
     const matchSearch =
@@ -17,7 +18,7 @@ export default function History() {
     return matchSearch && matchMode;
   });
 
-  // Group by date (local date string)
+  // Group by date
   const byDate = filtered.reduce((acc, item) => {
     const d = new Date(item.created_at).toLocaleDateString('en-GB', {
       year: 'numeric', month: 'short', day: '2-digit',
@@ -43,6 +44,13 @@ export default function History() {
     const m = Math.floor((secs % 3600) / 60);
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
+
+  // Parse bar items for selected session
+  const barItems = (() => {
+    if (!selectedSession) return [];
+    try { return selectedSession.bar_items ? JSON.parse(selectedSession.bar_items) : []; } catch { return []; }
+  })();
+  const barTotal = barItems.reduce((s, o) => s + ((o.price ?? 0) * o.qty), 0);
 
   return (
     <div className="page-content fade-in">
@@ -126,7 +134,9 @@ export default function History() {
             <div className="card flex-center" style={{ padding: 60, flexDirection: 'column', gap: 12 }}>
               <div style={{ fontSize: 40 }}>🔍</div>
               <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>
-                {sessions.length === 0 ? 'No sessions recorded yet. Complete a session to see history.' : 'No sessions match your filters.'}
+                {sessions.length === 0
+                  ? 'No sessions recorded yet. Complete a session to see history.'
+                  : 'No sessions match your filters.'}
               </div>
             </div>
           ) : Object.entries(byDate).map(([date, items]) => (
@@ -167,28 +177,24 @@ export default function History() {
 
                       {/* Info */}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3, flexWrap: 'wrap' }}>
                           <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
                             Room {item.room_number}
                           </span>
                           <span style={{ fontSize: 10, background: mc.bg, color: mc.color, padding: '2px 8px', borderRadius: 999, fontWeight: 700 }}>
                             {mc.label}
                           </span>
-                          <span style={{ 
-                            fontSize: 10, 
-                            background: item.payment_method === 'card' ? 'rgba(6,182,212,0.15)' : item.payment_method === 'split' ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)', 
-                            color: item.payment_method === 'card' ? '#06b6d4' : item.payment_method === 'split' ? '#f59e0b' : '#10b981', 
-                            padding: '2px 8px', 
-                            borderRadius: 999, 
-                            fontWeight: 700 
+                          <span style={{
+                            fontSize: 10,
+                            background: item.payment_method === 'card' ? 'rgba(6,182,212,0.15)' : item.payment_method === 'split' ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)',
+                            color: item.payment_method === 'card' ? '#06b6d4' : item.payment_method === 'split' ? '#f59e0b' : '#10b981',
+                            padding: '2px 8px', borderRadius: 999, fontWeight: 700,
                           }}>
                             {item.payment_method === 'card' ? '💳 Card' : item.payment_method === 'split' ? '🔄 Split' : '💵 Cash'}
                           </span>
                         </div>
                         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                            ⏱ {formatDuration(item.duration_secs)}
-                          </span>
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>⏱ {formatDuration(item.duration_secs)}</span>
                           {item.start_time && (
                             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                               🕐 {item.start_time}{item.end_time ? ` → ${item.end_time}` : ''}
@@ -200,9 +206,7 @@ export default function History() {
                             </span>
                           )}
                           {item.bar_amount > 0 && (
-                            <span style={{ fontSize: 11, color: '#06b6d4' }}>
-                              ☕ Bar: {formatSomRaw(item.bar_amount)}
-                            </span>
+                            <span style={{ fontSize: 11, color: '#06b6d4' }}>☕ Bar: {formatSomRaw(item.bar_amount)}</span>
                           )}
                         </div>
                       </div>
@@ -217,6 +221,27 @@ export default function History() {
                         </div>
                       </div>
 
+                      {/* Eye button */}
+                      <button
+                        onClick={e => { e.stopPropagation(); setSelectedSession(item); }}
+                        title="View bar orders"
+                        style={{
+                          background: 'rgba(6,182,212,0.1)',
+                          border: '1px solid rgba(6,182,212,0.25)',
+                          borderRadius: 8,
+                          width: 32, height: 32,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          cursor: 'pointer',
+                          color: '#06b6d4',
+                          flexShrink: 0,
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(6,182,212,0.22)'; e.currentTarget.style.borderColor = 'rgba(6,182,212,0.5)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(6,182,212,0.1)'; e.currentTarget.style.borderColor = 'rgba(6,182,212,0.25)'; }}
+                      >
+                        <Eye size={14} />
+                      </button>
+
                       {/* Time */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--text-muted)', fontSize: 11, flexShrink: 0, minWidth: 48 }}>
                         <Clock size={11} />
@@ -228,6 +253,102 @@ export default function History() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Bar Detail Modal */}
+      {selectedSession && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}
+          onClick={() => setSelectedSession(null)}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid rgba(6,182,212,0.3)',
+              borderRadius: 20,
+              padding: 28,
+              minWidth: 340,
+              maxWidth: 420,
+              width: '90vw',
+              boxShadow: '0 24px 60px rgba(0,0,0,0.6), 0 0 40px rgba(6,182,212,0.08)',
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(6,182,212,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <ShoppingCart size={17} color="#06b6d4" />
+                </div>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>
+                    Bar Orders — Room {selectedSession.room_number}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
+                    {barItems.length === 0
+                      ? 'No bar orders for this session'
+                      : `${barItems.reduce((s, o) => s + o.qty, 0)} items · ${formatSomRaw(barTotal)}`}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedSession(null)}
+                style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)' }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            {/* Items list */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+              {barItems.length === 0 ? (
+                <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, padding: '28px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                  <div style={{ fontSize: 36 }}>🛒</div>
+                  <div>No bar orders were placed for this session</div>
+                </div>
+              ) : (
+                barItems.map((order, idx) => {
+                  const unitPrice = order.price ?? 0;
+                  const lineTotal = unitPrice * order.qty;
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        padding: '10px 14px',
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 12,
+                      }}
+                    >
+                      <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
+                        {order.icon || '🛒'}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{order.item}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                          {formatSomRaw(unitPrice)} × {order.qty}
+                          {order.time && <span style={{ marginLeft: 8 }}>· {order.time}</span>}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: '#06b6d4', fontFamily: 'Orbitron, sans-serif', flexShrink: 0 }}>
+                        {formatSomRaw(lineTotal)}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Footer total */}
+            {barItems.length > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.15)', borderRadius: 12 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Bar Total</span>
+                <span style={{ fontSize: 20, fontWeight: 800, color: '#10b981', fontFamily: 'Orbitron, sans-serif' }}>{formatSomRaw(barTotal)}</span>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
