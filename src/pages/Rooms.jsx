@@ -20,6 +20,7 @@ export default function Rooms() {
   const [newRoom, setNewRoom] = useState({ number: '', type: '', equipment: '', pricePerHour: '' });
   const [roomToDelete, setRoomToDelete] = useState(null);
   const [editRoom, setEditRoom] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const filtered = filter === 'all' ? rooms : rooms.filter(r => r.status === filter);
   const sortedFiltered = [...filtered].sort((a, b) => {
@@ -43,6 +44,7 @@ export default function Rooms() {
   const handleAdd = async () => {
     if (!newRoom.number) return;
     try {
+      setSubmitting(true);
       await addRoom({
         ...newRoom,
         status: 'available',
@@ -54,16 +56,21 @@ export default function Rooms() {
       setNewRoom({ number: '', type: 'Standard', equipment: '', pricePerHour: '' });
     } catch (e) {
       console.error(e);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleEdit = async () => {
     if (!editRoom.number) return;
     try {
+      setSubmitting(true);
       await updateRoom(editRoom.id, editRoom);
       setEditRoom(null);
     } catch (e) {
       console.error(e);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -74,11 +81,14 @@ export default function Rooms() {
   const confirmDelete = async () => {
     if (roomToDelete) {
       try {
+        setSubmitting(true);
         await deleteRoom(roomToDelete);
         setSelected(null);
         setRoomToDelete(null);
       } catch (e) {
         console.error(e);
+      } finally {
+        setSubmitting(false);
       }
     }
   };
@@ -101,7 +111,7 @@ export default function Rooms() {
       {/* Room Grid */}
       {loading && rooms.length === 0 ? (
         <SkeletonRoomGrid count={6} />
-      ) : filtered.length === 0 ? (
+      ) : sortedFiltered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🏠</div>
           <div style={{ fontSize: 15 }}>No rooms found</div>
@@ -109,35 +119,45 @@ export default function Rooms() {
       ) : null}
       {!loading || rooms.length > 0 ? (
         <div className="room-grid">
-          {filtered.map(room => {
-          const cfg = statusConfig[room.status];
-          return (
-            <div key={room.id} className={`room-card ${room.status}`} onClick={() => setSelected(room)}>
-              <div className="flex-between">
-                <div className="room-number">{room.number}</div>
-              </div>
-              <div className="room-type">{room.type}</div>
-              <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-                <button 
-                  className="btn btn-secondary btn-sm" 
-                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  onClick={(e) => { e.stopPropagation(); setEditRoom(room); }}
-                >
-                  <Edit size={14} style={{ marginRight: 6 }} /> Edit
-                </button>
-                <button 
-                  className="btn btn-sm" 
-                  style={{ flex: 1, background: 'rgba(239,68,68,0.1)', color: 'var(--red)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  onClick={(e) => { e.stopPropagation(); setRoomToDelete(room.id); }}
-                >
-                  <Trash2 size={14} style={{ marginRight: 6 }} /> Delete
-                </button>
-              </div>
-              {room.status === 'occupied' && (
-                <div style={{ marginTop: 12, padding: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: 8 }}>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Current Session Active</div>
+          {sortedFiltered.map(room => {
+            const cfg = statusConfig[room.status];
+            return (
+              <div key={room.id} className={`room-card ${room.status}`} onClick={() => setSelected(room)}>
+                <div className="flex-between">
+                  <div className="room-number">{room.number}</div>
+                  <div className="status-badge" style={{ background: cfg.bg, color: cfg.color, display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', borderRadius: 12, fontSize: 11, fontWeight: 600 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dot }} />
+                    {cfg.label}
+                  </div>
                 </div>
                 <div className="room-type">{room.type}</div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)' }}>
+                    <span>Equipment:</span>
+                    <span style={{ color: 'var(--text-main)', fontWeight: 500 }}>{room.equipment || '—'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)' }}>
+                    <span>Price/Hour:</span>
+                    <span style={{ color: 'var(--text-main)', fontWeight: 500 }}>{room.pricePerHour ? `${formatSomRaw(room.pricePerHour)}/hr` : '—'}</span>
+                  </div>
+                </div>
+
+                {room.status === 'occupied' && (
+                  <div style={{ marginTop: 12, padding: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: 8 }}>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--red)' }} />
+                      Current Session Active
+                    </div>
+                    {room.startTime && (
+                      <div className="flex-gap" style={{ gap: 6, marginTop: 6, display: 'flex', alignItems: 'center' }}>
+                        <Clock size={12} color="var(--text-muted)" />
+                        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Since {room.startTime}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
                   <button 
                     className="btn btn-secondary btn-sm" 
@@ -154,16 +174,9 @@ export default function Rooms() {
                     <Trash2 size={14} style={{ marginRight: 6 }} /> Delete
                   </button>
                 </div>
-                {room.startTime && (
-                  <div className="flex-gap" style={{ gap: 6 }}>
-                    <Clock size={12} color="var(--text-muted)" />
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{room.startTime}</span>
-                  </div>
-                )}
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
         </div>
       ) : null}
 
@@ -176,7 +189,15 @@ export default function Rooms() {
               <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={18} /></button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-              {[['Type', selected.type], ['Equipment', selected.equipment || (selected.pcs ? `${selected.pcs} PCs` : '')], ['Price/Hour', selected.pricePerHour ? `$${selected.pricePerHour}` : '—'], ['Status', selected.status], ['Start Time', selected.startTime || '—'], ['End Time', selected.endTime || '—'], ['Revenue', selected.revenue ? `$${selected.revenue}` : '—']].map(([k, v]) => (
+              {[
+                ['Type', selected.type],
+                ['Equipment', selected.equipment || '—'],
+                ['Price/Hour', selected.pricePerHour ? formatSomRaw(selected.pricePerHour) : '—'],
+                ['Status', selected.status.charAt(0).toUpperCase() + selected.status.slice(1)],
+                ['Start Time', selected.startTime || '—'],
+                ['End Time', selected.endTime || '—'],
+                ['Revenue', selected.revenue ? formatSomRaw(selected.revenue) : '—']
+              ].map(([k, v]) => (
                 <div key={k} className="flex-between">
                   <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{k}</span>
                   <span style={{ fontSize: 13, fontWeight: 600 }}>{v}</span>
@@ -227,8 +248,8 @@ export default function Rooms() {
                 <input className="form-input" type="text" placeholder="e.g. PS5, PS4, 4 PCs" value={editRoom.equipment || (editRoom.pcs ? `${editRoom.pcs} PCs` : '')} onChange={e => setEditRoom(p => ({ ...p, equipment: e.target.value }))} />
               </div>
               <div className="form-group">
-                <label className="form-label">Price per Hour</label>
-                <input className="form-input" type="number" min="0" placeholder="e.g. 15" value={editRoom.pricePerHour || ''} onChange={e => setEditRoom(p => ({ ...p, pricePerHour: e.target.value }))} />
+                <label className="form-label">Price per Hour (so'm)</label>
+                <input className="form-input" type="number" min="0" placeholder="e.g. 30000" value={editRoom.pricePerHour || ''} onChange={e => setEditRoom(p => ({ ...p, pricePerHour: e.target.value }))} />
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
@@ -273,8 +294,8 @@ export default function Rooms() {
                 <input className="form-input" type="text" placeholder="e.g. PS5, PS4, 4 PCs" value={newRoom.equipment} onChange={e => setNewRoom(p => ({ ...p, equipment: e.target.value }))} />
               </div>
               <div className="form-group">
-                <label className="form-label">Price per Hour</label>
-                <input className="form-input" type="number" min="0" placeholder="e.g. 15" value={newRoom.pricePerHour} onChange={e => setNewRoom(p => ({ ...p, pricePerHour: e.target.value }))} />
+                <label className="form-label">Price per Hour (so'm)</label>
+                <input className="form-input" type="number" min="0" placeholder="e.g. 30000" value={newRoom.pricePerHour} onChange={e => setNewRoom(p => ({ ...p, pricePerHour: e.target.value }))} />
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, Settings, Monitor, BarChart3,
-  Users, Wallet, Coffee, History, Palette,
+  LayoutDashboard, Settings, Monitor,
+  Users, Wallet, Coffee, History,
   ChevronRight, Gamepad2
 } from 'lucide-react';
 
@@ -11,12 +11,10 @@ import { useAuth } from '../context/AuthContext';
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard, badge: 'rooms' },
   { path: '/rooms', label: 'Manage Rooms', icon: Monitor, badge: null },
-  { path: '/statistics', label: 'Statistics', icon: BarChart3, badge: null },
   { path: '/employees', label: 'Employees', icon: Users, badge: null },
   { path: '/spending', label: 'Spending', icon: Wallet, badge: null },
   { path: '/bars', label: 'Bars', icon: Coffee, badge: null },
   { path: '/history', label: 'History', icon: History, badge: null },
-  { path: '/appearance', label: 'Appearance', icon: Palette, badge: null },
   { path: '/settings', label: 'Settings', icon: Settings, badge: null },
 ];
 

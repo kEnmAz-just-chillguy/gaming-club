@@ -63,23 +63,82 @@ const getSessionTimes = (startTimeStr, endTimeStr) => {
   return { startMs, endMs };
 };
 
+const mapProductDetails = (name) => {
+  const lowercaseName = name.toLowerCase();
+  
+  let icon = '🛒';
+  let category = 'Snacks';
+  
+  if (lowercaseName.includes('water') || lowercaseName.includes('suv') || lowercaseName.includes('mineral')) {
+    icon = '💧';
+    category = 'Drinks';
+  } else if (lowercaseName.includes('cola') || lowercaseName.includes('coca') || lowercaseName.includes('pepsi') || lowercaseName.includes('fanta') || lowercaseName.includes('sprite') || lowercaseName.includes('limonad')) {
+    icon = '🥤';
+    category = 'Drinks';
+  } else if (lowercaseName.includes('energy') || lowercaseName.includes('pulse') || lowercaseName.includes('red bull') || lowercaseName.includes('adrenal') || lowercaseName.includes('flash')) {
+    icon = '⚡';
+    category = 'Drinks';
+  } else if (lowercaseName.includes('juice') || lowercaseName.includes('sok') || lowercaseName.includes('shirin')) {
+    icon = '🧃';
+    category = 'Drinks';
+  } else if (lowercaseName.includes('coffee') || lowercaseName.includes('kofe') || lowercaseName.includes('espresso') || lowercaseName.includes('cappuccino') || lowercaseName.includes('latte')) {
+    icon = '☕';
+    category = 'Hot';
+  } else if (lowercaseName.includes('tea') || lowercaseName.includes('choy')) {
+    icon = '🍵';
+    category = 'Hot';
+  } else if (lowercaseName.includes('burger') || lowercaseName.includes('sandwich') || lowercaseName.includes('hotdog') || lowercaseName.includes('shaurma') || lowercaseName.includes('lavash') || lowercaseName.includes('pizza')) {
+    icon = '🍔';
+    category = 'Food';
+  } else if (lowercaseName.includes('chips') || lowercaseName.includes('chiz') || lowercaseName.includes('pishiriq') || lowercaseName.includes('pechine') || lowercaseName.includes('shokolad') || lowercaseName.includes('snack') || lowercaseName.includes('nuts')) {
+    icon = '🍟';
+    category = 'Snacks';
+  }
+  
+  return { icon, category };
+};
+
 export default function RoomDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { rooms: globalRooms, loading, updateRoom } = useSupabaseRooms();
   const room = globalRooms.find(r => r.id === Number(id));
 
-  // Bar items available in this club (kept in component — no Supabase table yet)
-  const barItems = [
-    { name: 'Water',       price: 2000,  icon: '💧' },
-    { name: 'Coca-Cola',   price: 5000,  icon: '🥤' },
-    { name: 'Energy Drink',price: 8000,  icon: '⚡' },
-    { name: 'Chips',       price: 4000,  icon: '🍟' },
-    { name: 'Sandwich',    price: 12000, icon: '🥪' },
-    { name: 'Coffee',      price: 6000,  icon: '☕' },
-    { name: 'Tea',         price: 4000,  icon: '🍵' },
-    { name: 'Juice',       price: 7000,  icon: '🧃' },
-  ];
+  const [barItems, setBarItems] = useState([]);
+  const [barLoading, setBarLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchBarItems = async () => {
+      setBarLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('bars')
+          .select('*')
+          .order('name', { ascending: true });
+        if (!error && data) {
+          const mapped = data.map(item => {
+            const { icon, category } = mapProductDetails(item.name);
+            return {
+              id: item.id,
+              name: item.name,
+              price: item.sotuv_narxi || 0,
+              originalPrice: item.price || 0,
+              qtyAvailable: item.quantity || 0,
+              unit: item.unit || 'dona',
+              category,
+              icon
+            };
+          });
+          setBarItems(mapped);
+        }
+      } catch (err) {
+        console.error('Error fetching bar items in RoomDetail:', err);
+      } finally {
+        setBarLoading(false);
+      }
+    };
+    fetchBarItems();
+  }, []);
 
   const [showOccupyModal, setShowOccupyModal] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -883,23 +942,39 @@ export default function RoomDetail() {
               </div>
 
               <div style={{ overflowY: 'auto', flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, paddingBottom: 4 }}>
-                {filtered.map(item => {
-                  const ordered = liveBarOrders.find(o => o.item === item.name);
-                  return (
-                    <button key={item.id} onClick={() => addBarItem(item)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: ordered ? 'rgba(6,182,212,0.08)' : 'var(--bg-secondary)', border: `1px solid ${ordered ? '#06b6d4' : 'var(--border)'}`, borderRadius: 12, cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s', position: 'relative' }}>
-                      <div style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>{item.icon}</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
-                        <div style={{ fontSize: 11, color: '#06b6d4', fontWeight: 700 }}>{formatSomRaw(item.price)}</div>
+                {barLoading ? (
+                  Array.from({ length: 6 }).map((_, idx) => (
+                    <div key={idx} style={{ height: 64, borderRadius: 12, background: 'var(--bg-secondary)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
+                      <div className="skeleton" style={{ width: 38, height: 38, borderRadius: 10 }} />
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div className="skeleton" style={{ width: '80%', height: 12, borderRadius: 4 }} />
+                        <div className="skeleton" style={{ width: '40%', height: 10, borderRadius: 4 }} />
                       </div>
-                      {ordered && (
-                        <div style={{ position: 'absolute', top: 6, right: 6, width: 18, height: 18, borderRadius: '50%', background: '#06b6d4', color: '#fff', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {ordered.qty}
+                    </div>
+                  ))
+                ) : filtered.length === 0 ? (
+                  <div style={{ gridColumn: 'span 2', textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: 13 }}>
+                    No products found in inventory
+                  </div>
+                ) : (
+                  filtered.map(item => {
+                    const ordered = liveBarOrders.find(o => o.item === item.name);
+                    return (
+                      <button key={item.id} onClick={() => addBarItem(item)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: ordered ? 'rgba(6,182,212,0.08)' : 'var(--bg-secondary)', border: `1px solid ${ordered ? '#06b6d4' : 'var(--border)'}`, borderRadius: 12, cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s', position: 'relative' }}>
+                        <div style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>{item.icon}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
+                          <div style={{ fontSize: 11, color: '#06b6d4', fontWeight: 700 }}>{formatSomRaw(item.price)}</div>
                         </div>
-                      )}
-                    </button>
-                  );
-                })}
+                        {ordered && (
+                          <div style={{ position: 'absolute', top: 6, right: 6, width: 18, height: 18, borderRadius: '50%', background: '#06b6d4', color: '#fff', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {ordered.qty}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })
+                )}
               </div>
 
               <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
